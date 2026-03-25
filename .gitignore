@@ -1,0 +1,35 @@
+# Android
+build/
+.gradle/
+app/build/
+*.iml
+.idea/
+local.properties
+.DS_Store
+at_sign.png
+captures/
+.externalNativeBuild
+.cxx
+*.jks
+*.keystore
+*.apk
+*.aar
+!app/libs/*.aar
+
+# Kotlin
+bin/
+lib/
+
+# VS Code
+.vscode/
+
+# Other
+temp_aar/
+dist/
+nul
+Release-github/
+build.py
+extract_src.py
+libbox_classes.txt
+libbox_methods.txt
+platform_interface.txt

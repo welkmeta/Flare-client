@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Flare Client</string>
+    <string name="btn_connect">Подключить</string>
+    <string name="btn_disconnect">Отключить</string>
+    <string name="btn_clipboard">Буфер обмена</string>
+    <string name="label_add_profiles">Добавить профили</string>
+    <string name="vpn_active">VPN активен</string>
+    <string name="vpn_disconnect">Отключить</string>
+    <string name="menu_edit_subscription">Редактировать подписку</string>
+    <string name="settings_title">Настройки</string>
+    <string name="settings_header_vpn">Настройки VPN</string>
+    <string name="settings_header_appearance">Оформление</string>
+    <string name="settings_btn_base">Базовые</string>
+    <string name="settings_btn_advanced">Расширенные</string>
+    <string name="settings_item_theme">Тема и шрифт</string>
+    <string name="settings_item_language">Язык</string>
+
+    <string name="settings_header_app">Настройки приложения</string>
+    <string name="settings_item_ping">Пинг</string>
+    <string name="settings_item_subscriptions">Подписки</string>
+
+    <!-- Advanced Settings -->
+    <string name="settings_advanced_title">Расширенные настройки</string>
+    <string name="settings_label_fragmentation">Фрагментация</string>
+    <string name="settings_label_packet_type">Тип пакетов</string>
+
+    <string name="settings_label_fragment_interval">Задержка между фрагментами</string>
+
+    <string name="settings_label_noise_type">Тип</string>
+    <string name="settings_label_noise_packet">Пакет</string>
+    <string name="settings_label_noise_delay">Задержка</string>
+    <string name="settings_label_noise_apply">Применить к ip</string>
+    <!-- Mux Settings -->
+    <string name="settings_label_mux">Mux</string>
+    <string name="settings_label_mux_protocol">Способ</string>
+    <string name="settings_label_mux_streams">Кол-во потоков</string>
+    <string name="settings_label_mux_padding">Добавить шум</string>
+
+    <!-- Remote DNS -->
+    <string name="settings_label_remote_dns">Remote DNS</string>
+    <string name="settings_label_dns_url">URL</string>
+    <string name="settings_hint_dns_url">Auto</string>
+    <string name="settings_label_fake_ip">Поддельная DNS (Fake IP)</string>
+    <string name="settings_label_use_fake_ip">Включить Fake IP</string>
+
+    <string name="settings_label_mtu_title">Изменение MTU</string>
+    <string name="settings_label_mtu">MTU</string>
+    <string name="settings_restart_tunnel_hint">Настройки будут применены при следующем создании туннеля.</string>
+    <string name="vpn_error_tunnel_creation">Не удалось создать туннель</string>
+    
+    <string name="settings_stack_header">Сетевой стек</string>
+    <string name="settings_label_stack_title">Использовать</string>
+    <string name="settings_label_stack">%s</string>
+    
+    <!-- Ping Settings -->
+    <string name="settings_ping_title">Настройки пинга</string>
+    <string name="settings_label_ping_type">Тип пинга</string>
+    <string name="settings_ping_type_get">via proxy GET</string>
+    <string name="settings_ping_type_head">via proxy HEAD</string>
+    <string name="settings_ping_type_tcp">TCP</string>
+    <string name="settings_ping_type_icmp">ICMP</string>
+    <string name="settings_label_test_url">Test-URL</string>
+    <string name="settings_hint_test_url">https://www.google.com/generate_204</string>
+    <string name="settings_desc_test_url">Данная ссылка отвечает за то какая ссылка будет использована для проверки задержки</string>
+    <string name="settings_label_ping_display">Отображение пинга</string>
+    <string name="settings_label_ping_style">Стиль</string>
+    <string name="settings_ping_style_time">Время</string>
+    <string name="settings_ping_style_icon">Значок</string>
+    <string name="settings_ping_style_both">Время и значок</string>
+    <!-- Basic Settings -->
+    <string name="settings_basic_title">Базовые настройки</string>
+    <string name="settings_label_split_tunneling">Раздельное туннелирование</string>
+    <string name="settings_header_autostart">Автозапуск</string>
+    <string name="settings_label_autostart">Создавать туннель при запуске приложения</string>
+    <string name="settings_btn_change">Изменить</string>
+    <string name="dialog_apps_title">Выберите приложения</string>
+    <string name="btn_cancel">Отмена</string>
+    <string name="btn_save">Сохранить</string>
+    <string name="selected_apps_count">%d выбрано</string>
+    <string name="search_apps_hint">Поиск приложений...</string>
+
+    <string name="json_edit_success">JSON %s был успешно изменен.</string>
+    
+    <!-- Subscriptions Settings -->
+    <string name="settings_subscriptions_title">Подписки</string>
+    <string name="settings_label_auto_update">Автообновление</string>
+    <string name="settings_label_update_every">Обновлять подписки каждые</string>
+    <string name="settings_hint_update_interval">3600</string>
+    <string name="sub_update_success">%d Подписок было успешно обновлено.</string>
+    <string name="sub_deleted_success">Подписка %s была удалена!</string>
+
+    <!-- Theme and Font Settings -->
+    <string name="settings_theme_title">Тема и шрифт</string>
+    <string name="settings_theme_header">Тема</string>
+    <string name="settings_label_theme">Стиль</string>
+    <string name="settings_label_font">Шрифт</string>
+    <string name="settings_btn_change_font">Изменить шрифт</string>
+    <string name="settings_font_geologica">Geologica</string>
+
+    <string name="settings_bg_effects_header">Фоновые эффекты</string>
+    <string name="settings_label_enable_gradient">Включить градиент</string>
+    <string name="theme_auto">Авто</string>
+    <string name="theme_day">День</string>
+    <string name="theme_night">Ночь</string>
+    
+    <!-- Notifications Settings -->
+    <string name="settings_header_notifications">Уведомления</string>
+    <string name="settings_label_status_notification">Уведомление с статусом</string>
+</resources>

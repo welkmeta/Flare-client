@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Flare Client launcher icon foreground: stylised flame / lightning bolt -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Outer glow ring -->
+    <path
+        android:fillColor="#205B8CFF"
+        android:pathData="M54,22a32,32 0 1,0 32,32A32,32 0 0,0 54,22Z"/>
+
+    <!-- Lightning bolt (Flare symbol) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M60,28L42,56h14L46,80l26,-34H58Z"/>
+
+</vector>

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Backgrounds -->
+    <color name="bg_dark">#0D0F14</color>
+    <color name="bg_surface">#161B25</color>
+    <color name="bg_item">#F0F2F5</color>
+    <color name="bg_nav_bar">#80F5F7FA</color>
+    <color name="bg_notification_bar">#F5F7FA</color>
+
+    <!-- Accent -->
+    <color name="accent">#5B8CFF</color>
+    <color name="accent_end">#A066FF</color>
+
+    <!-- Text -->
+    <color name="text_primary">#1A1C1E</color>
+    <color name="text_secondary">#707991</color>
+    <color name="white">#FFFFFF</color>
+    
+    <color name="divider_color">#0D000000</color>
+    <color name="menu_text_color">#1A1C1E</color>
+
+    <!-- Status -->
+    <color name="connected_green">#30D158</color>
+    <color name="disconnected_red">#FF453A</color>
+</resources>
