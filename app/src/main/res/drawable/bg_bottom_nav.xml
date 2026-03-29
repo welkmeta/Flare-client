@@ -1,6 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <solid android:color="#40161B25" /> <!-- Translucent for glass effect -->
-    <corners android:radius="32dp" />
-    <stroke android:width="1dp" android:color="#4DFFFFFF" /> <!-- Subtle white-tinted rim -->
-</shape>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Очень лёгкий тёмный тинт — не скрывает blur -->
+    <item>
+        <shape>
+            <solid android:color="#19111828" />
+            <corners android:radius="28dp" />
+        </shape>
+    </item>
+
+    <!-- Внешняя граница стекла -->
+    <item>
+        <shape>
+            <corners android:radius="28dp" />
+            <stroke
+                android:width="1dp"
+                android:color="#28FFFFFF" />
+        </shape>
+    </item>
+
+</layer-list>

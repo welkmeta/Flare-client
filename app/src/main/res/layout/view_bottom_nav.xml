@@ -1,54 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-    Layout structure:
-    - SlidingBottomNav (FrameLayout, clipChildren=false → allows indicator to overflow)
-      └── nav_container (BlurView, just a transparent holder, NO RenderEffect)
-            ├── nav_blur_bg (View) ← ONLY this view gets RenderEffect blur + rounded bg
-            ├── nav_indicator_glow (GlowView, overflows above)
-            ├── nav_indicator (the sliding pill)
-            └── LinearLayout (icons row)
--->
 <merge xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content">
+    xmlns:app="http://schemas.android.com/apk/res-auto">
 
-    <!-- Outer FrameLayout acts only as a size anchor, no background, no clipping -->
+    <!-- Container for the glass bar -->
     <FrameLayout
         android:id="@+id/nav_container_frame"
         android:layout_width="match_parent"
-        android:layout_height="96dp"
-        android:layout_marginHorizontal="16dp"
+        android:layout_height="80dp"
+        android:layout_marginHorizontal="20dp"
+        android:layout_marginBottom="16dp"
         android:clipChildren="false"
-        android:clipToPadding="false">
+        android:clipToPadding="false"
+        android:elevation="8dp">
 
-        <!-- Glass blur background — ONLY this gets the RenderEffect.
-             It sits at the bottom of the Z-order, sized to the pill area (64dp + 16dp margins from top). -->
-        <View
-            android:id="@+id/nav_blur_bg"
+        <!--
+            BlurView — настоящее frosted glass.
+            Захватывает снимок BlurTarget и размывает на GPU.
+            background=bg_bottom_nav: rounded shape + subtle tint + border.
+            blurOverlayColor убран — тонировка уже в bg_bottom_nav.
+        -->
+        <eightbitlab.com.blurview.BlurView
+            android:id="@+id/glass_blur_view"
             android:layout_width="match_parent"
             android:layout_height="64dp"
             android:layout_gravity="bottom"
             android:background="@drawable/bg_bottom_nav" />
 
-        <!-- GlowView: overflows upward, so it must be in the non-clipped parent -->
-        <flare.client.app.ui.widget.GlowView
-            android:id="@+id/nav_indicator_glow"
-            android:layout_width="10px"
-            android:layout_height="10px"
-            android:layout_gravity="bottom"
-            android:alpha="0" />
+        <!-- Liquid Pill Indicator -->
+        <flare.client.app.ui.widget.LiquidPillView
+            android:id="@+id/nav_liquid_indicator"
+            android:layout_width="match_parent"
+            android:layout_height="80dp"
+            android:layout_gravity="bottom" />
 
-        <!-- Sliding indicator pill — can overflow the nav_blur_bg bounds -->
-        <View
-            android:id="@+id/nav_indicator"
-            android:layout_width="100dp"
-            android:layout_height="58dp"
-            android:layout_gravity="bottom"
-            android:layout_marginBottom="3dp"
-            android:layout_marginHorizontal="3dp"
-            android:background="@drawable/bg_nav_indicator" />
-
-        <!-- Icons row, sits above the blur bg -->
+        <!-- Navigation Icons -->
         <LinearLayout
             android:id="@+id/nav_icons_row"
             android:layout_width="match_parent"
@@ -63,7 +48,8 @@
                 android:layout_weight="1"
                 android:padding="20dp"
                 android:src="@drawable/ic_nav_settings"
-                android:tint="@color/nav_icon_tint" />
+                android:tint="@android:color/white"
+                android:alpha="0.5" />
 
             <ImageView
                 android:id="@+id/iv_nav_home"
@@ -72,7 +58,8 @@
                 android:layout_weight="1"
                 android:padding="20dp"
                 android:src="@drawable/ic_nav_home"
-                android:tint="@color/nav_icon_tint" />
+                android:tint="@android:color/white"
+                android:alpha="1.0" />
 
             <ImageView
                 android:id="@+id/iv_nav_servers"
@@ -81,7 +68,8 @@
                 android:layout_weight="1"
                 android:padding="20dp"
                 android:src="@drawable/ic_nav_servers"
-                android:tint="@color/nav_icon_tint" />
+                android:tint="@android:color/white"
+                android:alpha="0.5" />
         </LinearLayout>
     </FrameLayout>
 </merge>

@@ -25,11 +25,17 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val db = AppDatabase.getInstance(application)
     private val repository = ProfileRepository(db.profileDao(), db.subscriptionDao())
+
+    companion object {
+        private const val VIRTUAL_SUB_ID = -1L
+    }
 
     private val _connectionTimerText = MutableStateFlow("")
     val connectionTimerText: StateFlow<String> = _connectionTimerText.asStateFlow()
@@ -60,6 +66,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     sealed class ImportEvent {
+        object Loading : ImportEvent()
         data class Success(val message: String) : ImportEvent()
         data class Error(val message: String) : ImportEvent()
         data class NeedPermission(val intent: Intent) : ImportEvent()
@@ -95,7 +102,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         val app = getApplication<Application>()
-        app.registerReceiver(vpnReceiver, IntentFilter(FlareVpnService.BROADCAST_STATE), Context.RECEIVER_NOT_EXPORTED)
+        val flags = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            Context.RECEIVER_NOT_EXPORTED
+        } else {
+            0
+        }
+        app.registerReceiver(vpnReceiver, IntentFilter(FlareVpnService.BROADCAST_STATE), flags)
         
         // Sync state if VPN is already running
         if (flare.client.app.singbox.SingBoxManager.isRunning) {
@@ -115,9 +127,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun toggleSubscriptionExpanded(subId: Long) = expandedSubs.update { if (subId in it) it - subId else it + subId }
     fun selectProfile(profileId: Long) { viewModelScope.launch { repository.selectProfile(profileId); _selectedProfileId.value = profileId; if (_connectionState.value != ConnectionState.DISCONNECTED) { stopVpn(); startVpn() } } }
     fun deleteSubscription(subId: Long) {
-        val subName = displayItems.value.filterIsInstance<DisplayItem.SubscriptionItem>().find { it.entity.id == subId }?.entity?.name ?: "Неизвестно"
+        val subName = if (subId == VIRTUAL_SUB_ID) {
+            getApplication<Application>().getString(R.string.sub_single_profiles)
+        } else {
+            displayItems.value.filterIsInstance<DisplayItem.SubscriptionItem>().find { it.entity.id == subId }?.entity?.name ?: "Неизвестно"
+        }
         viewModelScope.launch {
-            repository.deleteSubscriptionById(subId)
+            if (subId == VIRTUAL_SUB_ID) {
+                repository.deleteStandaloneProfiles()
+            } else {
+                repository.deleteSubscriptionById(subId)
+            }
+            expandedSubs.update { it - subId }
             if (repository.getSelectedProfile() == null) _selectedProfileId.value = null
             flare.client.app.ui.notification.AppNotificationManager.showNotification(
                 flare.client.app.ui.notification.NotificationType.SUCCESS,
@@ -128,7 +149,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
     fun speedTestSubscription(subId: Long) {
         viewModelScope.launch {
-            val profiles = repository.getAllProfiles().first().filter { it.subscriptionId == subId }
+            val profiles = if (subId == VIRTUAL_SUB_ID) {
+                repository.getAllProfiles().first().filter { it.subscriptionId == null }
+            } else {
+                repository.getAllProfiles().first().filter { it.subscriptionId == subId }
+            }
             if (profiles.isEmpty()) return@launch
             speedTestProfile(profiles)
         }
@@ -177,7 +202,35 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun updateProfileConfig(id: Long, json: String) { viewModelScope.launch(Dispatchers.IO) { repository.updateProfileConfig(id, json) } }
     fun updateSubscriptionConfig(id: Long, json: String) { /* implementation skipped */ }
     fun connectOrDisconnect() = if (_connectionState.value != ConnectionState.DISCONNECTED) stopVpn() else startVpn()
-    fun importFromClipboard(text: String) { viewModelScope.launch(Dispatchers.IO) { when (val result = ClipboardParser.parse(text)) { is ClipboardParser.ParseResult.SingleProfile -> repository.insertProfile(result.profile); is ClipboardParser.ParseResult.Subscription -> repository.insertSubscriptionWithProfiles(result.subscription, result.profiles); is ClipboardParser.ParseResult.Error -> _importEvent.emit(ImportEvent.Error(result.message)); else -> {} } } }
+    fun importFromClipboard(text: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _importEvent.emit(ImportEvent.Loading)
+            try {
+                kotlinx.coroutines.withTimeout(10000L) {
+                    when (val result = ClipboardParser.parse(text)) {
+                        is ClipboardParser.ParseResult.SingleProfile -> {
+                            repository.insertProfile(result.profile)
+                            _importEvent.emit(ImportEvent.Success("Профиль ${result.profile.name} успешно добавлен!"))
+                        }
+                        is ClipboardParser.ParseResult.Subscription -> {
+                            repository.insertSubscriptionWithProfiles(result.subscription, result.profiles)
+                            _importEvent.emit(ImportEvent.Success("Подписка ${result.subscription.name} успешно добавлена!"))
+                        }
+                        is ClipboardParser.ParseResult.Error -> {
+                            _importEvent.emit(ImportEvent.Error("Не удалось добавить подписку или профиль!"))
+                        }
+                        else -> {
+                            _importEvent.emit(ImportEvent.Error("Не удалось добавить подписку или профиль!"))
+                        }
+                    }
+                }
+            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                _importEvent.emit(ImportEvent.Error("Не удалось добавить подписку или профиль! (таймаут 10 сек)"))
+            } catch (e: Exception) {
+                _importEvent.emit(ImportEvent.Error("Не удалось добавить подписку или профиль!"))
+            }
+        }
+    }
 
     private fun startVpn() {
         viewModelScope.launch {
@@ -222,7 +275,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             items += DisplayItem.SubscriptionItem(sub, subProfiles, isExpanded, if (isExpanded) DisplayItem.CornerType.TOP else DisplayItem.CornerType.ALL)
             if (isExpanded) subProfiles.forEachIndexed { i, p -> items += DisplayItem.ProfileItem(p, p.id == selId, pings[p.id] ?: PingState.None, if (i == subProfiles.size - 1) DisplayItem.CornerType.BOTTOM else DisplayItem.CornerType.NONE) }
         }
-        standalone.forEach { p -> items += DisplayItem.ProfileItem(p, p.id == selId, pings[p.id] ?: PingState.None, DisplayItem.CornerType.ALL) }
+        
+        if (standalone.isNotEmpty()) {
+            val virtualSub = SubscriptionEntity(
+                id = VIRTUAL_SUB_ID,
+                name = getApplication<Application>().getString(R.string.sub_single_profiles),
+                url = ""
+            )
+            val isExpanded = VIRTUAL_SUB_ID in expanded
+            items += DisplayItem.SubscriptionItem(virtualSub, standalone, isExpanded, if (isExpanded) DisplayItem.CornerType.TOP else DisplayItem.CornerType.ALL)
+            if (isExpanded) {
+                standalone.forEachIndexed { i, p ->
+                    items += DisplayItem.ProfileItem(p, p.id == selId, pings[p.id] ?: PingState.None, if (i == standalone.size - 1) DisplayItem.CornerType.BOTTOM else DisplayItem.CornerType.NONE)
+                }
+            }
+        }
         return items
     }
 
@@ -239,12 +306,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    suspend fun refreshAllSubscriptions() {
+    suspend fun refreshAllSubscriptions() = withContext(Dispatchers.IO) {
         val subs = repository.getAllSubscriptions().first()
+        if (subs.isEmpty()) return@withContext
         var successCount = 0
         subs.forEach { sub ->
             try {
-                val result = ClipboardParser.parse(sub.url)
+                val result = withTimeoutOrNull(10000L) {
+                    ClipboardParser.parse(sub.url)
+                }
                 if (result is ClipboardParser.ParseResult.Subscription) {
                     repository.deleteProfilesBySubscription(sub.id)
                     db.profileDao().insertAll(result.profiles.map { it.copy(subscriptionId = sub.id) })
@@ -252,10 +322,57 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
             } catch (e: Exception) { Log.e("MainViewModel", "Failed to refresh ${sub.name}", e) }
         }
+        val app = getApplication<Application>()
         if (successCount > 0) {
-            val settings = SettingsManager(getApplication())
+            val settings = SettingsManager(app)
             settings.lastSubUpdateTime = System.currentTimeMillis()
-            flare.client.app.ui.notification.AppNotificationManager.showNotification(flare.client.app.ui.notification.NotificationType.SUCCESS, getApplication<Application>().getString(flare.client.app.R.string.sub_update_success, successCount), 4)
+            flare.client.app.ui.notification.AppNotificationManager.showNotification(
+                flare.client.app.ui.notification.NotificationType.SUCCESS,
+                app.getString(R.string.sub_update_success, successCount),
+                4
+            )
+        } else {
+            flare.client.app.ui.notification.AppNotificationManager.showNotification(
+                flare.client.app.ui.notification.NotificationType.ERROR,
+                app.getString(R.string.sub_update_error),
+                4
+            )
+        }
+    }
+
+    fun refreshSubscription(sub: SubscriptionEntity) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val result = withTimeoutOrNull(15000L) {
+                    ClipboardParser.parse(sub.url)
+                }
+                if (result is ClipboardParser.ParseResult.Subscription) {
+                    repository.deleteProfilesBySubscription(sub.id)
+                    db.profileDao().insertAll(result.profiles.map { it.copy(subscriptionId = sub.id) })
+                    
+                    val app = getApplication<Application>()
+                    flare.client.app.ui.notification.AppNotificationManager.showNotification(
+                        flare.client.app.ui.notification.NotificationType.SUCCESS,
+                        app.getString(R.string.sub_update_success_single, sub.name),
+                        3
+                    )
+                } else {
+                    val app = getApplication<Application>()
+                    flare.client.app.ui.notification.AppNotificationManager.showNotification(
+                        flare.client.app.ui.notification.NotificationType.ERROR,
+                        app.getString(R.string.sub_update_error),
+                        3
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Failed to refresh ${sub.name}", e)
+                val app = getApplication<Application>()
+                flare.client.app.ui.notification.AppNotificationManager.showNotification(
+                    flare.client.app.ui.notification.NotificationType.ERROR,
+                    app.getString(R.string.sub_update_error),
+                    3
+                )
+            }
         }
     }
 

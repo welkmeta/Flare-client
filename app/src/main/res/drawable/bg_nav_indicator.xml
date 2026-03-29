@@ -1,6 +1,10 @@
-<?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <solid android:color="#1AFFFFFF" /> <!-- Frosted pill fill (10% white) -->
-    <corners android:radius="32dp" />
-    <stroke android:width="1.5dp" android:color="#26FFFFFF" /> <!-- Frosted inner edge (15% white) -->
-</shape>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Ultra-soft Frosted Pill (Liquid Selection) -->
+    <item>
+        <shape>
+            <solid android:color="#1AFFFFFF" /> <!-- Subtle 10% white for frosted feel -->
+            <corners android:radius="32dp" />
+            <!-- No stroke for a more liquid look -->
+        </shape>
+    </item>
+</layer-list>

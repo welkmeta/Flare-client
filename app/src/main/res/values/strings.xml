@@ -7,7 +7,7 @@
     <string name="label_add_profiles">Добавить профили</string>
     <string name="vpn_active">VPN активен</string>
     <string name="vpn_disconnect">Отключить</string>
-    <string name="menu_edit_subscription">Редактировать подписку</string>
+    <string name="menu_edit_subscription">Редактировать</string>
     <string name="settings_title">Настройки</string>
     <string name="settings_header_vpn">Настройки VPN</string>
     <string name="settings_header_appearance">Оформление</string>
@@ -88,7 +88,10 @@
     <string name="settings_label_update_every">Обновлять подписки каждые</string>
     <string name="settings_hint_update_interval">3600</string>
     <string name="sub_update_success">%d Подписок было успешно обновлено.</string>
+    <string name="sub_update_success_single">Подписка %s была успешно обновлена.</string>
+    <string name="sub_update_error">Не удалось обновить все подписки!</string>
     <string name="sub_deleted_success">Подписка %s была удалена!</string>
+    <string name="menu_update_subscription">Обновить</string>
 
     <!-- Theme and Font Settings -->
     <string name="settings_theme_title">Тема и шрифт</string>
@@ -107,4 +110,6 @@
     <!-- Notifications Settings -->
     <string name="settings_header_notifications">Уведомления</string>
     <string name="settings_label_status_notification">Уведомление с статусом</string>
+    <string name="hint_add_first_profile">Добавьте свой первый профиль или подписку с помощью кнопки ниже!</string>
+    <string name="sub_single_profiles">Одиночные профили</string>
 </resources>

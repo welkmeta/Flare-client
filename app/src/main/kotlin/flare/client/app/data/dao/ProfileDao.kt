@@ -39,4 +39,7 @@ interface ProfileDao {
 
     @Query("DELETE FROM profiles WHERE subscriptionId = :subId")
     suspend fun deleteBySubscriptionId(subId: Long)
+
+    @Query("DELETE FROM profiles WHERE subscriptionId IS NULL")
+    suspend fun deleteStandaloneProfiles()
 }

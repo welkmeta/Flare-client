@@ -3,6 +3,9 @@ package flare.client.app.ui
 import android.app.Dialog
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import android.os.Bundle
 import android.text.SpannableString
 import android.text.style.ForegroundColorSpan
@@ -28,6 +31,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import eightbitlab.com.blurview.BlurTarget
 
 class MainActivity : AppCompatActivity() {
 
@@ -62,15 +66,50 @@ class MainActivity : AppCompatActivity() {
 
         binding.root.clipToPadding = false
         binding.root.clipChildren = false
-        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            
+            // Bottom padding for navigation
             binding.bottomNav.setPadding(
                 binding.bottomNav.paddingLeft,
                 binding.bottomNav.paddingTop,
                 binding.bottomNav.paddingRight,
                 systemBars.bottom
             )
-            WindowInsetsCompat.CONSUMED
+            
+            // Selective top padding for screens that have top-aligned titles/toolbars.
+            // We DON'T apply it to root_layout or layout_home to avoid pushing central content down.
+            val density = resources.displayMetrics.density
+            val topPaddedViews = listOf(
+                flare.client.app.R.id.layout_settings,
+                flare.client.app.R.id.layout_settings_advanced_container,
+                flare.client.app.R.id.layout_settings_ping_container,
+                flare.client.app.R.id.layout_settings_base_container,
+                flare.client.app.R.id.layout_settings_subscriptions_container,
+                flare.client.app.R.id.layout_settings_theme_container,
+                flare.client.app.R.id.toolbar_json
+            )
+            
+            topPaddedViews.forEach { id ->
+                findViewById<View>(id)?.let { view ->
+                    view.setPadding(
+                        view.paddingLeft,
+                        systemBars.top,
+                        view.paddingRight,
+                        view.paddingBottom
+                    )
+                }
+            }
+            
+            // Notification margin adjustment
+            val notificationView = findViewById<View>(flare.client.app.R.id.notification_include)
+            if (notificationView != null) {
+                val params = notificationView.layoutParams as ViewGroup.MarginLayoutParams
+                params.topMargin = systemBars.top + (16 * density).toInt()
+                notificationView.layoutParams = params
+            }
+
+            insets
         }
 
         applyBackgroundGradient()
@@ -172,7 +211,8 @@ class MainActivity : AppCompatActivity() {
                             viewModel.showSubscriptionOptions(subId)
                         },
                         onEditProfileJson = { profile -> viewModel.setEditingProfile(profile) },
-                        onEditSubscriptionJson = { sub -> viewModel.setEditingSubscription(sub) }
+                        onEditSubscriptionJson = { sub -> viewModel.setEditingSubscription(sub) },
+                        onSubscriptionUpdate = { sub -> viewModel.refreshSubscription(sub) }
                 )
         binding.rvProfiles.layoutManager = LinearLayoutManager(this)
         binding.rvProfiles.adapter = adapter
@@ -293,6 +333,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupBottomNav() {
+        binding.blurTarget.post {
+            val blurTarget = binding.blurTarget as? BlurTarget
+            if (blurTarget != null) {
+                binding.bottomNav.setupBlur(blurTarget)
+            }
+        }
         binding.bottomNav.onTabSelected = { index ->
             when (index) {
                 0 -> {
@@ -331,6 +377,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
+
 
     private fun setupSettings() {
         binding.layoutSettings.btnSettingsBase.setOnClickListener {
@@ -458,13 +505,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        val swStatusNotif = baseInclude?.findViewById<androidx.appcompat.widget.SwitchCompat>(flare.client.app.R.id.sw_status_notification)
-        if (swStatusNotif != null) {
-            swStatusNotif.isChecked = settings.isStatusNotificationEnabled
-            swStatusNotif.setOnCheckedChangeListener { _, isChecked ->
-                settings.isStatusNotificationEnabled = isChecked
-            }
-        }
 
         updateSplitTunnelingDesc()
 
@@ -492,10 +532,12 @@ class MainActivity : AppCompatActivity() {
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
         val selectedPackages = settings.splitTunnelingApps.toMutableSet()
-        val allApps = packageManager.getInstalledApplications(android.content.pm.PackageManager.GET_META_DATA)
+        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        val allApps = packageManager.queryIntentActivities(intent, 0)
+                        .map { it.activityInfo.applicationInfo }
+                        .distinctBy { it.packageName }
                         .filter {
-                            it.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM == 0 ||
-                                     it.packageName == packageName
+                            it.packageName == packageName || (it.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM == 0)
                         }
                         .map { appInfo ->
                             AppListItem(
@@ -506,6 +548,16 @@ class MainActivity : AppCompatActivity() {
                             )
                         }
                         .sortedBy { it.name }
+
+        if (allApps.size <= 1) {
+            Snackbar.make(binding.root, "Список пуст. Проверьте разрешение на список приложений в настройках.", Snackbar.LENGTH_LONG)
+                .setAction("Настройки") {
+                    val i = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                        data = Uri.fromParts("package", packageName, null)
+                    }
+                    startActivity(i)
+                }.show()
+        }
 
         var filteredApps = allApps
         val adapter = AppSelectionAdapter(filteredApps) { item ->
@@ -853,10 +905,10 @@ class MainActivity : AppCompatActivity() {
 
     private fun applyBackgroundGradient() {
         if (settings.isBackgroundGradientEnabled) {
-            binding.root.setBackgroundResource(flare.client.app.R.drawable.bg_home_gradient)
+            binding.blurTarget.setBackgroundResource(flare.client.app.R.drawable.bg_home_gradient)
             binding.rootLayout.setBackgroundColor(android.graphics.Color.TRANSPARENT)
         } else {
-            binding.root.setBackgroundColor(ContextCompat.getColor(this, flare.client.app.R.color.bg_dark))
+            binding.blurTarget.setBackgroundColor(ContextCompat.getColor(this, flare.client.app.R.color.bg_dark))
             binding.rootLayout.setBackgroundColor(android.graphics.Color.TRANSPARENT)
         }
     }
@@ -972,6 +1024,8 @@ class MainActivity : AppCompatActivity() {
             viewModel.displayItems.collect { items ->
                 adapter.submitList(items)
                 binding.rvProfiles.visibility = if (items.isEmpty()) View.GONE else View.VISIBLE
+                binding.tvAddHint.visibility = if (items.isEmpty()) View.VISIBLE else View.GONE
+                binding.tvAddProfiles.visibility = if (items.isEmpty()) View.GONE else View.VISIBLE
             }
         }
 
@@ -983,10 +1037,46 @@ class MainActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             viewModel.importEvent.collect { event ->
+                val btnContainer = binding.root.findViewById<android.widget.FrameLayout>(flare.client.app.R.id.btn_clipboard)
+                val tvText = binding.root.findViewById<android.widget.TextView>(flare.client.app.R.id.tv_clipboard_text)
+                val pbLoading = binding.root.findViewById<android.widget.ProgressBar>(flare.client.app.R.id.pb_clipboard_loading)
+                
                 when (event) {
-                    is MainViewModel.ImportEvent.Success -> showSnackbar(event.message)
-                    is MainViewModel.ImportEvent.Error -> showSnackbar(event.message)
-                    is MainViewModel.ImportEvent.NeedPermission -> vpnPermLauncher.launch(event.intent)
+                    is MainViewModel.ImportEvent.Loading -> {
+                        btnContainer?.isEnabled = false
+                        btnContainer?.alpha = 0.5f
+                        tvText?.visibility = View.INVISIBLE
+                        pbLoading?.visibility = View.VISIBLE
+                    }
+                    is MainViewModel.ImportEvent.Success -> {
+                        btnContainer?.isEnabled = true
+                        btnContainer?.alpha = 1.0f
+                        tvText?.visibility = View.VISIBLE
+                        pbLoading?.visibility = View.GONE
+                        flare.client.app.ui.notification.AppNotificationManager.showNotification(
+                            flare.client.app.ui.notification.NotificationType.SUCCESS,
+                            event.message,
+                            3
+                        )
+                    }
+                    is MainViewModel.ImportEvent.Error -> {
+                        btnContainer?.isEnabled = true
+                        btnContainer?.alpha = 1.0f
+                        tvText?.visibility = View.VISIBLE
+                        pbLoading?.visibility = View.GONE
+                        flare.client.app.ui.notification.AppNotificationManager.showNotification(
+                            flare.client.app.ui.notification.NotificationType.ERROR,
+                            event.message,
+                            3
+                        )
+                    }
+                    is MainViewModel.ImportEvent.NeedPermission -> {
+                        btnContainer?.isEnabled = true
+                        btnContainer?.alpha = 1.0f
+                        tvText?.visibility = View.VISIBLE
+                        pbLoading?.visibility = View.GONE
+                        vpnPermLauncher.launch(event.intent)
+                    }
                 }
             }
         }

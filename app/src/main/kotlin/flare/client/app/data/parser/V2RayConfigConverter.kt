@@ -43,7 +43,6 @@ object V2RayConfigConverter {
     fun convertV2RayToSingBox(xray: JSONObject): String {
         val sb = JSONObject()
 
-        // 1. Log
         sb.put(
                 "log",
                 JSONObject().apply {
@@ -52,14 +51,12 @@ object V2RayConfigConverter {
                 }
         )
 
-        // 2. Outbounds (Extract first)
         val xrayOutbounds = xray.optJSONArray("outbounds") ?: JSONArray()
         val sbOutbounds = convertOutbounds(xrayOutbounds)
 
         ensureOutbound(sbOutbounds, "direct")
         ensureOutbound(sbOutbounds, "block")
 
-        // Extract proxy domains
         val proxyDomains = JSONArray()
         proxyDomains.put("raw.githubusercontent.com")
         for (i in 0 until sbOutbounds.length()) {
@@ -143,7 +140,6 @@ object V2RayConfigConverter {
             }
         }
 
-        // 3. DNS
         var primaryDns = "https://1.1.1.1/dns-query"
         var strategy = "prefer_ipv4"
         val xrayDns = xray.optJSONObject("dns")
@@ -231,14 +227,12 @@ object V2RayConfigConverter {
                 }
         sb.put("dns", sbDns)
 
-        // 4. Inbounds
         val sbInbounds = JSONArray()
         sbInbounds.put(createTunInbound(xray))
         sb.put("inbounds", sbInbounds)
 
         sb.put("outbounds", sbOutbounds)
 
-        // 5. Route
         val sbRoute =
                 JSONObject().apply {
                     put("auto_detect_interface", false)
@@ -249,7 +243,6 @@ object V2RayConfigConverter {
                         put(JSONObject().apply { put("port", 53); put("action", "hijack-dns") })
                     }
                     
-                    // User rules
                     for (rule in routingRulesObjects) {
                         sbRules.put(rule)
                     }
@@ -523,7 +516,6 @@ object V2RayConfigConverter {
             route.remove("rule-set")
         }
 
-        // 2. Patch Tun Inbound
         obj.optJSONArray("inbounds")?.let { inbs ->
             for (i in 0 until inbs.length()) {
                 inbs.optJSONObject(i)?.takeIf { it.optString("type") == "tun" }?.apply {
@@ -536,7 +528,6 @@ object V2RayConfigConverter {
             }
         }
 
-        // 3. DNS Strategy and Rules
         val dns = obj.optJSONObject("dns") ?: JSONObject().also { obj.put("dns", it) }
         if (!dns.has("strategy")) {
             dns.put("strategy", "prefer_ipv4")
@@ -569,7 +560,6 @@ object V2RayConfigConverter {
             }
         }
 
-        // 4. Route Rules
         if (route != null) {
             route.put("auto_detect_interface", true)
             val rules = route.optJSONArray("rules") ?: JSONArray().also { route.put("rules", it) }

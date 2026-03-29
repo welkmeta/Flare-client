@@ -13,6 +13,7 @@
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:windowLightNavigationBar" tools:ignore="NewApi">false</item>
         <item name="android:fontFamily">@font/geologica_regular</item>
+        <item name="android:listDivider">@drawable/menu_divider</item>
     </style>
 
 </resources>

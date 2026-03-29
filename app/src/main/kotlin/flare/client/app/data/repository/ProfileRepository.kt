@@ -50,4 +50,7 @@ class ProfileRepository(
 
     suspend fun deleteProfilesBySubscription(subId: Long) =
         profileDao.deleteBySubscriptionId(subId)
+
+    suspend fun deleteStandaloneProfiles() =
+        profileDao.deleteStandaloneProfiles()
 }

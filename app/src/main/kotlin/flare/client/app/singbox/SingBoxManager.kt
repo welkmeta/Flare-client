@@ -76,7 +76,7 @@ object SingBoxManager {
             }
 
             setupDone = true
-            Log.i(TAG, "Libbox.setup() done")
+            if (flare.client.app.BuildConfig.DEBUG) Log.i(TAG, "Libbox.setup() done")
         } catch (e: Exception) {
             Log.e(TAG, "Libbox.setup() failed: ${e.message}", e)
         }
@@ -312,20 +312,15 @@ object SingBoxManager {
 
             patchedConfig = injectAdvancedSettings(patchedConfig, context)
 
-            Log.i(TAG, "=== sing-box CONFIG START ===")
-            patchedConfig.chunked(900).forEachIndexed { i, chunk -> Log.i(TAG, "CFG[$i]: $chunk") }
-            Log.i(TAG, "=== sing-box CONFIG END ===")
-
-            val overrideOptions = OverrideOptions()
             Log.i(TAG, "Calling startOrReloadService…")
             boxService?.startOrReloadService(patchedConfig, overrideOptions)
-            Log.i(TAG, "startOrReloadService completed")
+            if (flare.client.app.BuildConfig.DEBUG) Log.i(TAG, "startOrReloadService completed")
 
             startLogTail()
 
             isRunning = true
             startTime = System.currentTimeMillis()
-            Log.i(TAG, "sing-box started via AAR")
+            if (flare.client.app.BuildConfig.DEBUG) Log.i(TAG, "sing-box started via AAR")
             true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start sing-box: ${e.message}", e)
@@ -340,7 +335,7 @@ object SingBoxManager {
         try {
             boxService?.closeService()
             boxService?.close()
-            Log.i(TAG, "sing-box stopped")
+            if (flare.client.app.BuildConfig.DEBUG) Log.i(TAG, "sing-box stopped")
         } catch (e: Exception) {
             Log.e(TAG, "Error stopping sing-box: ${e.message}", e)
         } finally {
@@ -358,7 +353,6 @@ object SingBoxManager {
         callback(0L, 0L)
     }
 
-    // Internal log tail
 
     private fun startLogTail() {
         val file = logFile ?: return
@@ -385,7 +379,7 @@ object SingBoxManager {
                                 while (!Thread.currentThread().isInterrupted) {
                                     val line = reader.readLine()
                                     if (line != null) {
-                                        Log.i("SB-Core", line)
+                                        // Removed Log.i("SB-Core", line) to reduce noise
                                     } else {
                                         Thread.sleep(150)
                                     }
@@ -460,7 +454,6 @@ object SingBoxManager {
             val settings = SettingsManager(context)
             val obj = JSONObject(configJson)
 
-            // TUN inbound
             val remoteDnsUrl = settings.remoteDnsUrl
             if (remoteDnsUrl.isNotBlank()) {
                 val dns = obj.optJSONObject("dns")
@@ -501,7 +494,6 @@ object SingBoxManager {
                 }
             }
 
-            // Fake IP
             if (fakeIpEnabled) {
                 val dns = obj.optJSONObject("dns")
                 if (dns != null) {
@@ -509,7 +501,6 @@ object SingBoxManager {
                             dns.optJSONArray("servers")
                                     ?: JSONArray().also { dns.put("servers", it) }
 
-                    // Add fakeip server only once
                     var hasFakeIp = false
                     for (i in 0 until servers.length()) {
                         if (servers.optJSONObject(i)?.optString("tag") == "dns-fakeip") {
@@ -580,7 +571,6 @@ object SingBoxManager {
 
             val proxyOutbound = outbounds.getJSONObject(proxyIndex)
 
-            // Fragmentation
             if (settings.isFragmentationEnabled) {
                 val tls = proxyOutbound.optJSONObject("tls")
                 if (tls != null) {
@@ -615,7 +605,6 @@ object SingBoxManager {
                 }
             }
 
-            // Multiplex (Mux)
             if (settings.isMuxEnabled) {
                 val maxStreams = settings.muxMaxStreams.toIntOrNull()?.coerceIn(1, 128) ?: 8
                 val protocol = settings.muxProtocol.ifBlank { "smux" }

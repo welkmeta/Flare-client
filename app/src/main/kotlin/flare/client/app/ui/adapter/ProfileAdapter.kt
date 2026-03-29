@@ -30,6 +30,7 @@ class ProfileAdapter(
     private val onSubscriptionOptions: (Long) -> Unit,
     private val onEditProfileJson: (ProfileEntity) -> Unit,
     private val onEditSubscriptionJson: (SubscriptionEntity) -> Unit,
+    private val onSubscriptionUpdate: (SubscriptionEntity) -> Unit,
 ) : ListAdapter<DisplayItem, RecyclerView.ViewHolder>(DIFF) {
 
     companion object {
@@ -112,24 +113,37 @@ class ProfileAdapter(
             binding.root.setOnClickListener { toggle(item.entity) }
             binding.ivDelete.setOnClickListener { delete(item.entity.id) }
             binding.ivSpeedTest.setOnClickListener { speedTest(item.entity.id) }
-            binding.ivMoreOptions.setOnClickListener { view ->
+
+            val isVirtual = item.entity.id == -1L
+            binding.ivMoreOptions.visibility = if (isVirtual) View.GONE else View.VISIBLE
+            
+            if (!isVirtual) {
+                binding.ivMoreOptions.setOnClickListener { view ->
                 val popup = PopupMenu(view.context, view, Gravity.END)
-                val editLabel = view.context.getString(R.string.menu_edit_subscription)
-                val spannable = SpannableString(editLabel)
                 val textColor = ContextCompat.getColor(view.context, R.color.menu_text_color)
-                spannable.setSpan(
-                    ForegroundColorSpan(textColor),
-                    0,
-                    spannable.length,
-                    0
-                )
-                popup.menu.add(spannable)
-                
-                popup.setOnMenuItemClickListener { _ ->
+
+                val updateLabel = view.context.getString(R.string.menu_update_subscription)
+                val updateSpannable = SpannableString(updateLabel)
+                updateSpannable.setSpan(ForegroundColorSpan(textColor), 0, updateSpannable.length, 0)
+                popup.menu.add(0, 1, 1, updateSpannable).setOnMenuItemClickListener {
+                    onSubscriptionUpdate(item.entity)
+                    true
+                }
+
+                val editLabel = view.context.getString(R.string.menu_edit_subscription)
+                val editSpannable = SpannableString(editLabel)
+                editSpannable.setSpan(ForegroundColorSpan(textColor), 0, editSpannable.length, 0)
+                popup.menu.add(1, 2, 2, editSpannable).setOnMenuItemClickListener {
                     onEditSubscriptionJson(item.entity)
                     true
                 }
+
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                    popup.menu.setGroupDividerEnabled(true)
+                }
+                
                 popup.show()
+                }
             }
         }
     }
