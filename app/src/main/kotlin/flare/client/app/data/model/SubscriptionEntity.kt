@@ -7,5 +7,9 @@ import androidx.room.PrimaryKey
 data class SubscriptionEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
-    val url: String
+    val url: String,
+    val upload: Long = 0,
+    val download: Long = 0,
+    val total: Long = 0,
+    val expire: Long = 0
 )

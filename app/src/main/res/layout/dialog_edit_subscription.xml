@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bg_grouped_all"
+    android:padding="20dp"
+    android:layout_margin="24dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/edit_sub_title"
+        android:textColor="@color/text_primary"
+        android:textSize="20sp"
+        android:fontFamily="@font/geologica_medium"
+        android:layout_marginBottom="24dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/edit_sub_name_hint"
+        android:textColor="@color/text_secondary"
+        android:textSize="12sp"
+        android:fontFamily="@font/geologica_regular"
+        android:layout_marginBottom="8dp" />
+
+    <EditText
+        android:id="@+id/et_sub_name"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:background="@drawable/bg_edit_text_field"
+        android:hint="@string/edit_sub_name_hint"
+        android:textColorHint="@color/text_secondary"
+        android:textColor="@color/text_primary"
+        android:paddingHorizontal="16dp"
+        android:textSize="14sp"
+        android:fontFamily="@font/geologica_regular"
+        android:layout_marginBottom="20dp"
+        android:inputType="text"
+        android:maxLines="1" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/edit_sub_url_hint"
+        android:textColor="@color/text_secondary"
+        android:textSize="12sp"
+        android:fontFamily="@font/geologica_regular"
+        android:layout_marginBottom="8dp" />
+
+    <EditText
+        android:id="@+id/et_sub_url"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:background="@drawable/bg_edit_text_field"
+        android:hint="@string/edit_sub_url_hint"
+        android:textColorHint="@color/text_secondary"
+        android:textColor="@color/text_primary"
+        android:paddingHorizontal="16dp"
+        android:textSize="14sp"
+        android:fontFamily="@font/geologica_regular"
+        android:layout_marginBottom="24dp"
+        android:inputType="textUri"
+        android:maxLines="1" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/btn_cancel"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="@string/btn_cancel"
+            android:textColor="@color/text_secondary"
+            android:gravity="center"
+            android:fontFamily="@font/geologica_medium"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <View
+            android:layout_width="20dp"
+            android:layout_height="match_parent" />
+
+        <TextView
+            android:id="@+id/btn_save"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="@string/btn_save"
+            android:textColor="@color/accent"
+            android:gravity="center"
+            android:fontFamily="@font/geologica_medium"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true" />
+    </LinearLayout>
+
+</LinearLayout>

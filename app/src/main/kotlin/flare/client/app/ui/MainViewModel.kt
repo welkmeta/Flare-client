@@ -200,7 +200,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setEditingProfile(p: ProfileEntity?) { _editingProfile.value = p; _editingSubscription.value = null }
     fun setEditingSubscription(s: SubscriptionEntity?) { _editingSubscription.value = s; _editingProfile.value = null }
     fun updateProfileConfig(id: Long, json: String) { viewModelScope.launch(Dispatchers.IO) { repository.updateProfileConfig(id, json) } }
-    fun updateSubscriptionConfig(id: Long, json: String) { /* implementation skipped */ }
+    fun updateProfile(id: Long, name: String, json: String) { viewModelScope.launch(Dispatchers.IO) { repository.updateProfile(id, name, json) } }
+    fun updateSubscription(id: Long, name: String, url: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.updateSubscription(id, name, url)
+        }
+    }
     fun connectOrDisconnect() = if (_connectionState.value != ConnectionState.DISCONNECTED) stopVpn() else startVpn()
     fun importFromClipboard(text: String) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -318,6 +323,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 if (result is ClipboardParser.ParseResult.Subscription) {
                     repository.deleteProfilesBySubscription(sub.id)
                     db.profileDao().insertAll(result.profiles.map { it.copy(subscriptionId = sub.id) })
+                    repository.updateSubscription(result.subscription.copy(id = sub.id))
                     successCount++
                 }
             } catch (e: Exception) { Log.e("MainViewModel", "Failed to refresh ${sub.name}", e) }
@@ -349,6 +355,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 if (result is ClipboardParser.ParseResult.Subscription) {
                     repository.deleteProfilesBySubscription(sub.id)
                     db.profileDao().insertAll(result.profiles.map { it.copy(subscriptionId = sub.id) })
+                    repository.updateSubscription(result.subscription.copy(id = sub.id))
                     
                     val app = getApplication<Application>()
                     flare.client.app.ui.notification.AppNotificationManager.showNotification(

@@ -100,6 +100,27 @@ class ProfileAdapter(
             binding.root.layoutParams = layoutParams
 
             binding.tvSubName.text = item.entity.name
+            
+            binding.llTrafficContainer.visibility = View.VISIBLE
+            val used = item.entity.upload + item.entity.download
+            
+            binding.pbTraffic.progress = if (item.entity.total > 0) ((used.toDouble() / item.entity.total) * 10000).toInt() else 0
+            
+            val formatBytes = { bytes: Long ->
+                val mb = bytes.toDouble() / (1024 * 1024)
+                val gb = bytes.toDouble() / (1024 * 1024 * 1024)
+                if (gb >= 1.0) {
+                    java.lang.String.format(java.util.Locale.US, "%.2f GB", gb)
+                } else if (mb >= 1.0) {
+                    java.lang.String.format(java.util.Locale.US, "%.2f MB", mb)
+                } else {
+                    "$bytes B"
+                }
+            }
+            
+            val totalStr = if (item.entity.total > 0) formatBytes(item.entity.total) else "∞"
+            binding.tvTrafficInfo.text = "${formatBytes(used)} / $totalStr"
+
             val rotation = if (item.isExpanded) 90f else 0f
             binding.ivArrow.animate().rotation(rotation).setDuration(200).start()
             
@@ -251,7 +272,7 @@ class ProfileAdapter(
                     val json = JSONObject(entity.configJson)
                     val outbounds = json.optJSONArray("outbounds")
                     val proxy = outbounds?.optJSONObject(0)
-                    proxy?.optString("type")?.lowercase()?.replaceFirstChar { it.uppercase() } ?: "JSON"
+                    proxy?.optString("type")?.uppercase() ?: "JSON"
                 } catch (e: Exception) {
                     "JSON"
                 }

@@ -8,6 +8,9 @@
     <string name="vpn_active">VPN активен</string>
     <string name="vpn_disconnect">Отключить</string>
     <string name="menu_edit_subscription">Редактировать</string>
+    <string name="edit_sub_title">Редактирование подписки</string>
+    <string name="edit_sub_name_hint">Название подписки</string>
+    <string name="edit_sub_url_hint">URL Подписки</string>
     <string name="settings_title">Настройки</string>
     <string name="settings_header_vpn">Настройки VPN</string>
     <string name="settings_header_appearance">Оформление</string>
@@ -81,6 +84,8 @@
     <string name="search_apps_hint">Поиск приложений...</string>
 
     <string name="json_edit_success">JSON %s был успешно изменен.</string>
+    <string name="label_profile_name">Название профиля</string>
+    <string name="label_json_data">Данные JSON</string>
     
     <!-- Subscriptions Settings -->
     <string name="settings_subscriptions_title">Подписки</string>
@@ -110,6 +115,7 @@
     <!-- Notifications Settings -->
     <string name="settings_header_notifications">Уведомления</string>
     <string name="settings_label_status_notification">Уведомление с статусом</string>
+    <string name="settings_label_status">Статус</string>
     <string name="hint_add_first_profile">Добавьте свой первый профиль или подписку с помощью кнопки ниже!</string>
     <string name="sub_single_profiles">Одиночные профили</string>
 </resources>

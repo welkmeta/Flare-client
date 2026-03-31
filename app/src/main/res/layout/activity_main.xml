@@ -282,7 +282,8 @@
                 <androidx.constraintlayout.widget.ConstraintLayout
                     android:id="@+id/toolbar_json"
                     android:layout_width="match_parent"
-                    android:layout_height="56dp"
+                    android:layout_height="wrap_content"
+                    android:minHeight="56dp"
                     app:layout_constraintTop_toTopOf="parent">
 
                     <ImageView
@@ -299,19 +300,23 @@
 
                     <TextView
                         android:id="@+id/tv_json_title"
-                        android:layout_width="wrap_content"
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:text="Редактор конфига"
                         android:textColor="@color/text_primary"
                         android:textSize="18sp"
                         android:fontFamily="@font/geologica_medium"
                         android:layout_marginStart="8dp"
+                        android:layout_marginEnd="8dp"
+                        android:ellipsize="end"
+                        android:maxLines="1"
                         app:layout_constraintStart_toEndOf="@id/btn_json_back"
+                        app:layout_constraintEnd_toStartOf="@id/btn_json_save"
                         app:layout_constraintTop_toTopOf="parent"
                         app:layout_constraintBottom_toBottomOf="parent" />
 
                     <ImageView
-                        android:id="@+id/btn_json_copy"
+                        android:id="@+id/btn_json_save"
                         android:layout_width="48dp"
                         android:layout_height="48dp"
                         android:padding="12dp"
@@ -331,19 +336,57 @@
                     app:layout_constraintTop_toBottomOf="@id/toolbar_json"
                     app:layout_constraintBottom_toBottomOf="parent">
 
-                    <EditText
-                        android:id="@+id/et_json_content"
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:padding="16dp"
-                        android:background="@null"
-                        android:textColor="@color/text_primary"
-                        android:textSize="14sp"
-                        android:fontFamily="monospace"
-                        android:gravity="top|start"
-                        android:inputType="textMultiLine"
-                        android:hint="JSON config here..."
-                        android:textColorHint="@color/text_secondary" />
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/label_profile_name"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="13sp"
+                            android:fontFamily="@font/geologica_regular"
+                            android:layout_marginBottom="8dp" />
+
+                        <EditText
+                            android:id="@+id/et_json_profile_name"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="@drawable/bg_grouped_all"
+                            android:padding="12dp"
+                            android:textColor="@color/text_primary"
+                            android:textSize="15sp"
+                            android:fontFamily="@font/geologica_medium"
+                            android:inputType="text"
+                            android:maxLines="1"
+                            android:layout_marginBottom="24dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/label_json_data"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="13sp"
+                            android:fontFamily="@font/geologica_regular"
+                            android:layout_marginBottom="8dp" />
+
+                        <EditText
+                            android:id="@+id/et_json_content"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="@drawable/bg_grouped_all"
+                            android:padding="12dp"
+                            android:textColor="@color/text_primary"
+                            android:textSize="14sp"
+                            android:fontFamily="@font/geologica_regular"
+                            android:gravity="top|start"
+                            android:inputType="textMultiLine"
+                            android:minLines="10" />
+
+                    </LinearLayout>
 
                 </androidx.core.widget.NestedScrollView>
 

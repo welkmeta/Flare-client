@@ -50,6 +50,19 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
+    private val notificationPermLauncher =
+            registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+                if (isGranted) {
+                    showTestNotification()
+                } else {
+                    showSnackbar("Разрешение на уведомления отклонено")
+                    val baseInclude = findViewById<View>(flare.client.app.R.id.layout_settings_base_container)
+                    val swNotif = baseInclude?.findViewById<androidx.appcompat.widget.SwitchCompat>(flare.client.app.R.id.sw_notifications)
+                    swNotif?.isChecked = false
+                    settings.isStatusNotificationEnabled = false
+                }
+            }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -141,21 +154,6 @@ class MainActivity : AppCompatActivity() {
                 object : androidx.activity.OnBackPressedCallback(true) {
                     override fun handleOnBackPressed() {
                         if (binding.layoutJsonEditor.visibility == View.VISIBLE) {
-                            val name =
-                                    viewModel.editingProfile.value?.name
-                                            ?: viewModel.editingSubscription.value?.name
-                            if (name != null) {
-                                flare.client.app.ui.notification.AppNotificationManager
-                                        .showNotification(
-                                                flare.client.app.ui.notification.NotificationType
-                                                        .SUCCESS,
-                                                getString(
-                                                        flare.client.app.R.string.json_edit_success,
-                                                        name
-                                                ),
-                                                3
-                                        )
-                            }
                             viewModel.setEditingProfile(null)
                             viewModel.setEditingSubscription(null)
                         } else if (binding.layoutSettingsAdvancedContainer.root.visibility ==
@@ -284,52 +282,29 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupJsonEditor() {
         binding.btnJsonBack.setOnClickListener {
-            val name =
-                    viewModel.editingProfile.value?.name
-                            ?: viewModel.editingSubscription.value?.name
-            if (name != null) {
-                flare.client.app.ui.notification.AppNotificationManager.showNotification(
-                        flare.client.app.ui.notification.NotificationType.SUCCESS,
-                        getString(flare.client.app.R.string.json_edit_success, name),
-                        3
-                )
-            }
             viewModel.setEditingProfile(null)
             viewModel.setEditingSubscription(null)
         }
 
-        binding.btnJsonCopy.setOnClickListener {
-            val text = binding.etJsonContent.text.toString()
-            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("JSON Config", text))
-            showSnackbar("Конфиг скопирован")
-        }
-
-        binding.etJsonContent.addTextChangedListener(
-                object : android.text.TextWatcher {
-                    override fun beforeTextChanged(
-                            s: CharSequence?,
-                            start: Int,
-                            count: Int,
-                            after: Int
-                    ) {}
-                    override fun onTextChanged(
-                            s: CharSequence?,
-                            start: Int,
-                            before: Int,
-                            count: Int
-                    ) {
-                        val profileId = viewModel.editingProfile.value?.id
-                        val subId = viewModel.editingSubscription.value?.id
-                        if (profileId != null) {
-                            viewModel.updateProfileConfig(profileId, s.toString())
-                        } else if (subId != null) {
-                            viewModel.updateSubscriptionConfig(subId, s.toString())
-                        }
-                    }
-                    override fun afterTextChanged(s: android.text.Editable?) {}
+        binding.btnJsonSave.setOnClickListener {
+            val profile = viewModel.editingProfile.value
+            if (profile != null) {
+                val newName = binding.etJsonProfileName.text.toString().trim()
+                val newJson = binding.etJsonContent.text.toString()
+                
+                if (newName.isNotEmpty()) {
+                    viewModel.updateProfile(profile.id, newName, newJson)
+                    flare.client.app.ui.notification.AppNotificationManager.showNotification(
+                        flare.client.app.ui.notification.NotificationType.SUCCESS,
+                        getString(flare.client.app.R.string.json_edit_success, newName),
+                        3
+                    )
+                    viewModel.setEditingProfile(null)
+                } else {
+                    showSnackbar("Название не может быть пустым")
                 }
-        )
+            }
+        }
     }
 
     private fun setupBottomNav() {
@@ -502,6 +477,35 @@ class MainActivity : AppCompatActivity() {
             swAutostart.isChecked = settings.isAutostartEnabled
             swAutostart.setOnCheckedChangeListener { _, isChecked ->
                 settings.isAutostartEnabled = isChecked
+            }
+        }
+
+        val swNotif = baseInclude?.findViewById<androidx.appcompat.widget.SwitchCompat>(flare.client.app.R.id.sw_notifications)
+        val btnToggleNotif = baseInclude?.findViewById<View>(flare.client.app.R.id.btn_toggle_notifications)
+        if (swNotif != null && btnToggleNotif != null) {
+            swNotif.isChecked = settings.isStatusNotificationEnabled
+            
+            btnToggleNotif.setOnClickListener {
+                swNotif.toggle()
+            }
+
+            swNotif.setOnCheckedChangeListener { _, isChecked ->
+                settings.isStatusNotificationEnabled = isChecked
+                if (isChecked) {
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                        if (androidx.core.content.ContextCompat.checkSelfPermission(
+                                        this,
+                                        android.Manifest.permission.POST_NOTIFICATIONS
+                                ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+                        ) {
+                            notificationPermLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                        } else {
+                            showTestNotification()
+                        }
+                    } else {
+                        showTestNotification()
+                    }
+                }
             }
         }
 
@@ -1084,12 +1088,15 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             viewModel.editingProfile.collect { profile ->
                 if (profile != null) {
+                    binding.bottomNav.hide()
                     binding.layoutJsonEditor.visibility = View.VISIBLE
                     binding.tvJsonTitle.text = profile.name
+                    binding.etJsonProfileName.setText(profile.name)
                     if (binding.etJsonContent.text.toString() != profile.configJson) {
                         binding.etJsonContent.setText(profile.configJson)
                     }
                 } else if (viewModel.editingSubscription.value == null) {
+                    binding.bottomNav.show()
                     binding.layoutJsonEditor.visibility = View.GONE
                     val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
                     imm.hideSoftInputFromWindow(binding.etJsonContent.windowToken, 0)
@@ -1100,22 +1107,52 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             viewModel.editingSubscription.collect { sub ->
                 if (sub != null) {
-                    binding.layoutJsonEditor.visibility = View.VISIBLE
-                    binding.tvJsonTitle.text = sub.name
-                    val json = org.json.JSONObject().apply {
-                                        put("name", sub.name)
-                                        put("url", sub.url)
-                                    }.toString(2).replace("\\/", "/")
-                    if (binding.etJsonContent.text.toString() != json) {
-                        binding.etJsonContent.setText(json)
-                    }
-                } else if (viewModel.editingProfile.value == null) {
-                    binding.layoutJsonEditor.visibility = View.GONE
-                    val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
-                    imm.hideSoftInputFromWindow(binding.etJsonContent.windowToken, 0)
+                    showEditSubscriptionDialog(sub)
                 }
             }
         }
+    }
+
+    private fun showEditSubscriptionDialog(sub: flare.client.app.data.model.SubscriptionEntity) {
+        val dialog = Dialog(this)
+        val dialogBinding = flare.client.app.databinding.DialogEditSubscriptionBinding.inflate(layoutInflater)
+        dialog.setContentView(dialogBinding.root)
+        dialog.window?.let { window ->
+            window.setBackgroundDrawableResource(android.R.color.transparent)
+            val params = window.attributes
+            params.width = (resources.displayMetrics.widthPixels * 0.9).toInt()
+            window.attributes = params
+        }
+
+        dialogBinding.etSubName.setText(sub.name)
+        dialogBinding.etSubUrl.setText(sub.url)
+
+        dialogBinding.btnCancel.setOnClickListener {
+            viewModel.setEditingSubscription(null)
+            dialog.dismiss()
+        }
+
+        dialogBinding.btnSave.setOnClickListener {
+            val newName = dialogBinding.etSubName.text.toString().trim()
+            val newUrl = dialogBinding.etSubUrl.text.toString().trim()
+            
+            if (newName.isNotEmpty() && newUrl.isNotEmpty()) {
+                viewModel.updateSubscription(sub.id, newName, newUrl)
+                flare.client.app.ui.notification.AppNotificationManager.showNotification(
+                    flare.client.app.ui.notification.NotificationType.SUCCESS,
+                    getString(flare.client.app.R.string.json_edit_success, newName),
+                    3
+                )
+                viewModel.setEditingSubscription(null)
+                dialog.dismiss()
+            }
+        }
+
+        dialog.setOnCancelListener {
+            viewModel.setEditingSubscription(null)
+        }
+
+        dialog.show()
     }
 
     private fun updateConnectButton(state: MainViewModel.ConnectionState) {
@@ -1155,5 +1192,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun showSnackbar(message: String) {
         Snackbar.make(binding.root, message, Snackbar.LENGTH_LONG).show()
+    }
+
+    private fun showTestNotification() {
+        flare.client.app.ui.notification.AppNotificationManager.showNotification(
+            flare.client.app.ui.notification.NotificationType.SUCCESS,
+            "Уведомления включены",
+            3
+        )
     }
 }

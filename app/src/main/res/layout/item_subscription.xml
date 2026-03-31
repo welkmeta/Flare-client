@@ -3,7 +3,8 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="60dp"
+    android:layout_height="wrap_content"
+    android:minHeight="60dp"
     android:paddingStart="16dp"
     android:paddingEnd="16dp"
     android:background="@drawable/bg_list_item">
@@ -19,22 +20,57 @@
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent" />
 
-    <!-- Subscription name -->
-    <TextView
-        android:id="@+id/tv_sub_name"
+    <!-- Subscription info -->
+    <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:orientation="vertical"
         android:layout_marginStart="12dp"
         android:layout_marginEnd="8dp"
-        android:textColor="@color/text_primary"
-        android:textSize="15sp"
-        android:fontFamily="@font/geologica_medium"
-        android:maxLines="1"
-        android:ellipsize="end"
         app:layout_constraintStart_toEndOf="@id/iv_arrow"
         app:layout_constraintEnd_toStartOf="@+id/ll_actions"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent" />
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <TextView
+            android:id="@+id/tv_sub_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/text_primary"
+            android:textSize="15sp"
+            android:fontFamily="@font/geologica_medium"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+        <FrameLayout
+            android:id="@+id/ll_traffic_container"
+            android:layout_width="match_parent"
+            android:layout_height="16dp"
+            android:layout_marginTop="4dp"
+            android:visibility="gone">
+            
+            <ProgressBar
+                android:id="@+id/pb_traffic"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:progressDrawable="@drawable/bg_progress_rounded"
+                android:max="10000" />
+                
+            <TextView
+                android:id="@+id/tv_traffic_info"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:textColor="@color/white"
+                android:shadowColor="#80000000"
+                android:shadowDx="0"
+                android:shadowDy="0"
+                android:shadowRadius="4"
+                android:textSize="10sp"
+                android:fontFamily="@font/geologica_medium" />
+        </FrameLayout>
+    </LinearLayout>
 
     <LinearLayout
         android:id="@+id/ll_actions"

@@ -51,6 +51,7 @@ object PingHelper {
                 }
                 Libbox.setup(opts)
                 if (flare.client.app.BuildConfig.DEBUG) Log.i(TAG, "Libbox.setup() success")
+                Unit
             } catch (e: Exception) {
                 Log.w(TAG, "Libbox.setup() failed: ${e.message}")
             } finally {

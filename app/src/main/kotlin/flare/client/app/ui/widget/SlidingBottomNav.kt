@@ -371,4 +371,29 @@ class SlidingBottomNav @JvmOverloads constructor(
         }
         return true
     }
+
+    fun hide(animate: Boolean = true) {
+        if (!animate) {
+            visibility = View.GONE
+            translationY = height.toFloat() + 100f // Fallback if height is 0
+            return
+        }
+        animate().translationY(height.toFloat() + 100f)
+            .setDuration(300)
+            .setInterpolator(android.view.animation.AccelerateInterpolator())
+            .withEndAction { visibility = View.GONE }
+            .start()
+    }
+
+    fun show(animate: Boolean = true) {
+        visibility = View.VISIBLE
+        if (!animate) {
+            translationY = 0f
+            return
+        }
+        animate().translationY(0f)
+            .setDuration(300)
+            .setInterpolator(android.view.animation.DecelerateInterpolator())
+            .start()
+    }
 }

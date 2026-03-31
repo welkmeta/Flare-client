@@ -82,79 +82,218 @@ object V2RayConfigConverter {
         val directRuleSets = mutableSetOf<String>()
         val directDomains = JSONArray()
 
-        if (xrayRules != null) {
-            for (i in 0 until xrayRules.length()) {
-                val xRule = xrayRules.optJSONObject(i) ?: continue
-                val outTag = xRule.optString("outboundTag", xRule.optString("outbound", "")) // xray uses outboundTag
-                if (outTag.isEmpty()) continue
+        // 2c. Parse balancers and create urltest outbounds
+        val xrayBalancers = xrayRouting?.optJSONArray("balancers")
+        val balancerTags = mutableSetOf<String>()
+        var firstBalancerTag = ""
+        
+        if (xrayBalancers != null) {
+            for (i in 0 until xrayBalancers.length()) {
+                val b = xrayBalancers.optJSONObject(i) ?: continue
+                val bTag = b.optString("tag", "")
+                if (bTag.isEmpty()) continue
                 
-                val domains = xRule.optJSONArray("domain")
-                if (domains != null && domains.length() > 0) {
-                    val rawDomains = JSONArray()
-                    for (j in 0 until domains.length()) {
-                        val d = domains.optString(j, "")
-                        if (d.startsWith("geosite:")) {
-                            val gs = d.removePrefix("geosite:")
-                            
-                            // Prevent tunnel crash by ensuring only bundled .srs files are added
-                            if (gs == "category-ru" || gs == "ru") {
-                                requiredRuleSets.add("geosite-ru")
-                                routingRulesObjects.add(JSONObject().apply { put("rule_set", "geosite-ru"); put("outbound", outTag) })
-                                if (outTag == "direct" || outTag == "block") directRuleSets.add("geosite-ru")
+                val selectors = b.optJSONArray("selector")
+                val matchedOutbounds = mutableListOf<String>()
+                
+                if (selectors != null) {
+                    for (j in 0 until selectors.length()) {
+                        val sel = selectors.optString(j, "")
+                        if (sel.isEmpty()) continue
+                        for (k in 0 until sbOutbounds.length()) {
+                            val ob = sbOutbounds.optJSONObject(k) ?: continue
+                            val obTag = ob.optString("tag", "")
+                            // Xray selector checks if outbound tag contains the selector string
+                            if (obTag.contains(sel) && !matchedOutbounds.contains(obTag)) {
+                                matchedOutbounds.add(obTag)
                             }
-                        } else if (d.isNotEmpty()) {
-                            rawDomains.put(d)
-                            if (outTag == "direct" || outTag == "block") directDomains.put(d)
                         }
-                    }
-                    if (rawDomains.length() > 0) {
-                        routingRulesObjects.add(JSONObject().apply { put("domain", rawDomains); put("outbound", outTag) })
                     }
                 }
                 
+                if (matchedOutbounds.isNotEmpty()) {
+                    val urltestOb = JSONObject().apply {
+                        put("type", "urltest")
+                        put("tag", bTag)
+                        put("outbounds", JSONArray().apply {
+                            matchedOutbounds.forEach { put(it) }
+                        })
+                        put("url", "http://www.gstatic.com/generate_204")
+                        put("interval", "3m")
+                        put("tolerance", 50)
+                    }
+                    sbOutbounds.put(urltestOb)
+                    balancerTags.add(bTag)
+                    if (firstBalancerTag.isEmpty()) {
+                        firstBalancerTag = bTag
+                    }
+                }
+            }
+        }
+
+        if (xrayRules != null) {
+            for (i in 0 until xrayRules.length()) {
+                val xRule = xrayRules.optJSONObject(i) ?: continue
+                val outboundTag = xRule.optString("outboundTag", xRule.optString("outbound", ""))
+                val balancerTag = xRule.optString("balancerTag", "")
+                
+                val actualOutTag = if (balancerTag.isNotEmpty() && balancerTags.contains(balancerTag)) {
+                    balancerTag
+                } else if (balancerTag.isNotEmpty()) {
+                    balancerTag // Even if it wasn't valid in our list, try to keep it 
+                } else {
+                    outboundTag
+                }
+                
+                if (actualOutTag.isEmpty()) continue
+
+                val sbRule = JSONObject()
+                var hasContent = false
+
+                // --- Domain rules ---
+                // xray prefixes: geosite: / domain: (suffix) / full: (exact) / regexp: / keyword:
+                // sing-box fields: rule_set / domain_suffix / domain / domain_regex / domain_keyword
+                val domains = xRule.optJSONArray("domain")
+                if (domains != null && domains.length() > 0) {
+                    val domainSuffixes  = JSONArray()
+                    val domainExact     = JSONArray()
+                    val domainRegex     = JSONArray()
+                    val domainKeywords  = JSONArray()
+
+                    for (j in 0 until domains.length()) {
+                        val d = domains.optString(j, "")
+                        when {
+                            d.startsWith("geosite:") -> {
+                                val gs = d.removePrefix("geosite:")
+                                if (gs == "category-ru" || gs == "ru") {
+                                    requiredRuleSets.add("geosite-ru")
+                                    routingRulesObjects.add(JSONObject().apply {
+                                        put("rule_set", "geosite-ru"); put("outbound", actualOutTag)
+                                    })
+                                    if (actualOutTag == "direct" || actualOutTag == "block") directRuleSets.add("geosite-ru")
+                                } else {
+                                    Log.d("V2RayConfigConverter", "Skipping unbundled geosite: $gs")
+                                }
+                            }
+                            d.startsWith("domain:") -> {
+                                val dom = d.removePrefix("domain:")
+                                if (dom.isNotEmpty()) {
+                                    domainSuffixes.put(dom)
+                                    if (actualOutTag == "direct" || actualOutTag == "block") directDomains.put(dom)
+                                }
+                            }
+                            d.startsWith("full:") -> {
+                                val dom = d.removePrefix("full:")
+                                if (dom.isNotEmpty()) domainExact.put(dom)
+                            }
+                            d.startsWith("regexp:") -> {
+                                val dom = d.removePrefix("regexp:")
+                                if (dom.isNotEmpty()) domainRegex.put(dom)
+                            }
+                            d.startsWith("keyword:") -> {
+                                val dom = d.removePrefix("keyword:")
+                                if (dom.isNotEmpty()) domainKeywords.put(dom)
+                            }
+                            d.isNotEmpty() -> {
+                                // Bare domain in xray = suffix match in sing-box
+                                domainSuffixes.put(d)
+                                if (actualOutTag == "direct" || actualOutTag == "block") directDomains.put(d)
+                            }
+                        }
+                    }
+                    if (domainSuffixes.length()  > 0) { sbRule.put("domain_suffix",  domainSuffixes);  hasContent = true }
+                    if (domainExact.length()     > 0) { sbRule.put("domain",          domainExact);     hasContent = true }
+                    if (domainRegex.length()     > 0) { sbRule.put("domain_regex",    domainRegex);     hasContent = true }
+                    if (domainKeywords.length()  > 0) { sbRule.put("domain_keyword",  domainKeywords);  hasContent = true }
+                }
+
+                // --- IP rules ---
                 val ips = xRule.optJSONArray("ip")
                 if (ips != null && ips.length() > 0) {
                     val rawIps = JSONArray()
                     var hasPrivate = false
                     for (j in 0 until ips.length()) {
                         val ip = ips.optString(j, "")
-                        if (ip == "geoip:private") {
-                            hasPrivate = true
-                        } else if (ip.startsWith("geoip:")) {
-                            val gi = ip.removePrefix("geoip:")
-                            if (gi == "ru") {
-                                requiredRuleSets.add("geoip-ru")
-                                routingRulesObjects.add(JSONObject().apply { put("rule_set", "geoip-ru"); put("outbound", outTag) })
+                        when {
+                            ip == "geoip:private" -> hasPrivate = true
+                            ip.startsWith("geoip:") -> {
+                                val gi = ip.removePrefix("geoip:")
+                                if (gi == "ru") {
+                                    requiredRuleSets.add("geoip-ru")
+                                    routingRulesObjects.add(JSONObject().apply {
+                                        put("rule_set", "geoip-ru"); put("outbound", actualOutTag)
+                                    })
+                                } else {
+                                    Log.d("V2RayConfigConverter", "Skipping unbundled geoip: $gi")
+                                }
                             }
-                        } else if (ip.isNotEmpty()) {
-                            rawIps.put(ip)
+                            ip.isNotEmpty() -> rawIps.put(ip)
                         }
                     }
-                    if (hasPrivate) {
-                        routingRulesObjects.add(JSONObject().apply { put("ip_is_private", true); put("outbound", outTag) })
+                    if (hasPrivate)           { sbRule.put("ip_is_private", true); hasContent = true }
+                    if (rawIps.length() > 0)  { sbRule.put("ip_cidr", rawIps);     hasContent = true }
+                }
+
+                // --- Port rules ---
+                // xray "port" field: "80", "80,443", or "1000-2000"
+                val port = xRule.optString("port", "")
+                if (port.isNotEmpty()) {
+                    val portInts   = JSONArray()
+                    val portRanges = JSONArray()
+                    for (p in port.split(",").map { it.trim() }.filter { it.isNotEmpty() }) {
+                        if (p.contains("-")) portRanges.put(p)
+                        else p.toIntOrNull()?.let { portInts.put(it) }
                     }
-                    if (rawIps.length() > 0) {
-                        routingRulesObjects.add(JSONObject().apply { put("ip_cidr", rawIps); put("outbound", outTag) })
-                    }
+                    if (portInts.length()   > 0) { sbRule.put("port",       portInts);   hasContent = true }
+                    if (portRanges.length() > 0) { sbRule.put("port_range", portRanges); hasContent = true }
+                }
+
+                // --- Network rule (tcp/udp) ---
+                val network = xRule.optString("network", "")
+                if (network.isNotEmpty()) { sbRule.put("network", network); hasContent = true }
+
+                // --- Protocol rule ---
+                val protocol = xRule.optString("protocol", "")
+                if (protocol.isNotEmpty()) {
+                    sbRule.put("protocol", JSONArray(protocol.split(",").map { it.trim() }))
+                    hasContent = true
+                }
+
+                if (hasContent) {
+                    sbRule.put("outbound", actualOutTag)
+                    routingRulesObjects.add(sbRule)
                 }
             }
         }
 
         var primaryDns = "https://1.1.1.1/dns-query"
+        var directDns = "8.8.8.8"
         var strategy = "prefer_ipv4"
         val xrayDns = xray.optJSONObject("dns")
         if (xrayDns != null) {
-            if (xrayDns.optString("queryStrategy", "") == "UseIPv4") {
-                strategy = "ipv4_only"
+            strategy = when (xrayDns.optString("queryStrategy", "")) {
+                "UseIPv4" -> "ipv4_only"
+                "UseIPv6" -> "ipv6_only"
+                "UseIP"   -> "prefer_ipv4"
+                else      -> "prefer_ipv4"
             }
             val servers = xrayDns.optJSONArray("servers")
             if (servers != null && servers.length() > 0) {
-                val s = servers.opt(0)
-                if (s is JSONObject) {
-                    val addr = s.optString("address", "")
-                    if (addr.isNotEmpty()) primaryDns = addr
-                } else if (s is String && s.isNotEmpty()) {
-                    primaryDns = s
+                // First server → remote (proxy) DNS
+                fun extractAddr(s: Any?): String = when (s) {
+                    is JSONObject -> s.optString("address", "")
+                    is String    -> s
+                    else         -> ""
+                }
+                val first = extractAddr(servers.opt(0))
+                if (first.isNotEmpty()) primaryDns = first
+                // Second server → direct (fallback) DNS, used for bootstrap
+                for (i in 1 until servers.length()) {
+                    val addr = extractAddr(servers.opt(i))
+                    if (addr.isNotEmpty() && !addr.startsWith("localhost") && !addr.startsWith("https://")) {
+                        directDns = addr
+                        break
+                    }
                 }
             }
         }
@@ -175,7 +314,7 @@ object V2RayConfigConverter {
                                 put(
                                         JSONObject().apply {
                                             put("tag", "dns-direct")
-                                            put("address", "8.8.8.8")
+                                            put("address", directDns)
                                             put("detour", "direct")
                                         }
                                 )
@@ -232,11 +371,25 @@ object V2RayConfigConverter {
         sb.put("inbounds", sbInbounds)
 
         sb.put("outbounds", sbOutbounds)
+        
+        // Find default proxy tag for final routing
+        var primaryProxyTag = "proxy"
+        if (firstBalancerTag.isNotEmpty()) {
+            primaryProxyTag = firstBalancerTag
+        } else if (sbOutbounds.length() > 0) {
+            for (i in 0 until sbOutbounds.length()) {
+                val t = sbOutbounds.optJSONObject(i)?.optString("tag") ?: continue
+                if (t != "direct" && t != "block" && t != "dns-out") {
+                    primaryProxyTag = t
+                    break
+                }
+            }
+        }
 
         val sbRoute =
                 JSONObject().apply {
                     put("auto_detect_interface", false)
-                    put("final", "proxy")
+                    put("final", primaryProxyTag)
                     
                     val sbRules = JSONArray().apply {
                         put(JSONObject().apply { put("protocol", "dns"); put("action", "hijack-dns") })
@@ -273,6 +426,9 @@ object V2RayConfigConverter {
 
         return sb.toString(2).replace("\\/", "/")
     }
+
+    /** Public wrapper to convert a JSONArray of v2ray outbounds to sing-box format. */
+    fun convertOutboundsPublic(xrayOutbounds: JSONArray): JSONArray = convertOutbounds(xrayOutbounds)
 
     private fun convertOutbounds(xrayOutbounds: JSONArray): JSONArray {
         val sbOutbounds = JSONArray()
@@ -440,38 +596,66 @@ object V2RayConfigConverter {
         }
     }
 
-    private fun createTunInbound(xray: JSONObject): JSONObject =
-            JSONObject().apply {
-                put("type", "tun")
-                put("tag", "tun-in")
-                put(
-                        "address",
-                        JSONArray().apply {
-                            put("172.19.0.1/30")
-                            put("fdfe:dcba:9876::1/126")
-                        }
-                )
-                put("mtu", 1500)
-                put("auto_route", true)
-                put("strict_route", true)
-                put("stack", "mixed")
-                // Removed dns_hijack as it's not supported in this version's TunInboundOptions
+    private fun createTunInbound(xray: JSONObject): JSONObject {
+        // Defaults
+        var mtu = 1500
+        var stack = "mixed"
+        var ipv4Addr = "172.19.0.1/30"
+        var ipv6Addr = "fdfe:dcba:9876::1/126"
+        var sniffingEnabled = true
 
-                var sniffingEnabled = true
-                xray.optJSONArray("inbounds")?.let { inbounds ->
-                    for (i in 0 until inbounds.length()) {
-                        if (inbounds.optJSONObject(i)
-                                        ?.optJSONObject("sniffing")
-                                        ?.optBoolean("enabled", false) == true
-                        ) {
-                            sniffingEnabled = true
-                            break
+        xray.optJSONArray("inbounds")?.let { inbounds ->
+            for (i in 0 until inbounds.length()) {
+                val inb = inbounds.optJSONObject(i) ?: continue
+                val inbType = inb.optString("type", inb.optString("protocol", ""))
+
+                if (inbType == "tun") {
+                    // Read MTU, stack, address from existing tun inbound (e.g. sing-box JSON passed as xray)
+                    val srcMtu = inb.optInt("mtu", 0)
+                    if (srcMtu > 0) mtu = srcMtu
+
+                    val srcStack = inb.optString("stack", "")
+                    if (srcStack.isNotEmpty()) stack = srcStack
+
+                    // Address may be array ["ip4/prefix", "ip6/prefix"] or string
+                    val addrField = inb.opt("address")
+                    when {
+                        addrField is JSONArray && addrField.length() >= 2 -> {
+                            val a0 = addrField.optString(0, "")
+                            val a1 = addrField.optString(1, "")
+                            if (a0.isNotEmpty()) ipv4Addr = a0
+                            if (a1.isNotEmpty()) ipv6Addr = a1
                         }
+                        addrField is JSONArray && addrField.length() == 1 -> {
+                            val a0 = addrField.optString(0, "")
+                            if (a0.isNotEmpty()) ipv4Addr = a0
+                        }
+                        addrField is String && addrField.isNotEmpty() -> ipv4Addr = addrField
                     }
                 }
-                put("sniff", sniffingEnabled)
-                put("sniff_override_destination", sniffingEnabled)
+
+                // xray sniffing check
+                if (inb.optJSONObject("sniffing")?.optBoolean("enabled", false) == true) {
+                    sniffingEnabled = true
+                }
             }
+        }
+
+        return JSONObject().apply {
+            put("type", "tun")
+            put("tag", "tun-in")
+            put("address", JSONArray().apply {
+                put(ipv4Addr)
+                put(ipv6Addr)
+            })
+            put("mtu", mtu)
+            put("auto_route", true)
+            put("strict_route", true)
+            put("stack", stack)
+            put("sniff", sniffingEnabled)
+            put("sniff_override_destination", sniffingEnabled)
+        }
+    }
 
     private fun hasOutbound(obs: JSONArray, type: String): Boolean {
         for (i in 0 until obs.length()) if (obs.optJSONObject(i)?.optString("type") == type)

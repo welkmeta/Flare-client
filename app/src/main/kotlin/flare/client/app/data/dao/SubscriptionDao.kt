@@ -13,6 +13,9 @@ interface SubscriptionDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(subscription: SubscriptionEntity): Long
 
+    @Update
+    suspend fun update(subscription: SubscriptionEntity)
+
     @Delete
     suspend fun delete(subscription: SubscriptionEntity)
 

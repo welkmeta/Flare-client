@@ -11,10 +11,6 @@ import java.net.URI
 import java.net.URLDecoder
 import java.util.concurrent.TimeUnit
 
-/**
- * Parses clipboard text into either a single proxy profile,
- * a subscription reference, or returns an error.
- */
 object ClipboardParser {
 
     private val httpClient = OkHttpClient.Builder()
@@ -52,7 +48,7 @@ object ClipboardParser {
     private fun parseFullJson(text: String): ParseResult {
         return try {
             val json = JSONObject(text)
-            val name = json.optString("remarks", json.optString("tag", "Imported Profile"))
+            val name = extractNameFromJson(json)
             val configJson = V2RayConfigConverter.convertIfNeeded(text)
             ParseResult.SingleProfile(ProfileEntity(name = name, uri = "internal://json", configJson = configJson, subscriptionId = null))
         } catch (e: Exception) {
@@ -62,13 +58,37 @@ object ClipboardParser {
 
     private fun parseSubscriptionUrl(url: String): ParseResult {
         return try {
-            val request = Request.Builder().url(url).build()
+            val request = Request.Builder()
+                .url(url)
+                .header("User-Agent", "Happ/3.15.2")
+                .build()
             val response = httpClient.newCall(request).execute()
             val body = response.body?.string() ?: ""
             
             val profileTitle = response.header("profile-title")
             val contentDisposition = response.header("content-disposition")
             val name = extractSubscriptionName(url, profileTitle, contentDisposition)
+            val userInfo = response.header("subscription-userinfo")
+            var upload = 0L
+            var download = 0L
+            var total = 0L
+            var expire = 0L
+            if (userInfo != null) {
+                val parts = userInfo.split(";")
+                for (part in parts) {
+                    val kv = part.split("=", limit = 2)
+                    if (kv.size == 2) {
+                        val k = kv[0].trim()
+                        val v = kv[1].trim().toLongOrNull() ?: 0L
+                        when (k) {
+                            "upload" -> upload = v
+                            "download" -> download = v
+                            "total" -> total = v
+                            "expire" -> expire = v
+                        }
+                    }
+                }
+            }
             
             val proxyLines = decodeSubscriptionBody(body)
             val profiles = proxyLines.mapIndexedNotNull { _, line -> try { buildProfileFromUri(line.trim(), 0L) } catch (_: Exception) { null } }
@@ -76,7 +96,7 @@ object ClipboardParser {
             response.close()
             
             if (profiles.isEmpty()) return ParseResult.Error("Подписка пуста")
-            ParseResult.Subscription(SubscriptionEntity(name = name, url = url), profiles)
+            ParseResult.Subscription(SubscriptionEntity(name = name, url = url, upload = upload, download = download, total = total, expire = expire), profiles)
         } catch (e: Exception) {
             ParseResult.Error("Ошибка подписки: ${e.message}")
         }
@@ -110,23 +130,105 @@ object ClipboardParser {
         }
     }
 
+    private fun extractNameFromJson(json: JSONObject): String {
+        return json.optString("remarks").takeIf { it.isNotBlank() }
+            ?: json.optString("tag").takeIf { it.isNotBlank() }
+            ?: json.optJSONArray("outbounds")?.optJSONObject(0)?.let {
+                it.optString("tag").takeIf { tag -> tag.isNotBlank() && tag != "proxy" }
+                    ?: it.optString("server").takeIf { srv -> srv.isNotBlank() }
+            }
+            ?: "Imported Profile"
+    }
+
 
     private fun decodeSubscriptionBody(body: String): List<String> {
-        val input = body.trim().replace("\r", "").replace("\n", "")
-        return try {
-            val clean = input.replace("-", "+").replace("_", "/")
-            val padded = when (clean.length % 4) { 2 -> "$clean=="; 3 -> "$clean="; else -> clean }
-            String(Base64.decode(padded, Base64.DEFAULT)).lines().filter { it.isNotBlank() }
-        } catch (_: Exception) {
-            body.lines().filter { it.isNotBlank() }
+        val trimmed = body.trim()
+
+        // Case 1: Body is a JSON array of profile objects
+        if (trimmed.startsWith("[")) {
+            return try {
+                val arr = org.json.JSONArray(trimmed)
+                (0 until arr.length()).mapNotNull { arr.optString(it).takeIf { s -> s.isNotBlank() } }
+                    .ifEmpty {
+                        // Array of objects
+                        (0 until arr.length()).mapNotNull { arr.optJSONObject(it)?.toString() }
+                    }
+            } catch (_: Exception) {
+                body.lines().filter { it.isNotBlank() }
+            }
         }
+
+        // Case 2: Body is a plain-text list (URIs or compact JSONs, one per line)
+        val lines = trimmed.lines().filter { it.isNotBlank() }
+        val looksLikePlainList = lines.all { line ->
+            val l = line.trim()
+            l.contains("://") || l.startsWith("{") || l.startsWith("[")
+        }
+        if (looksLikePlainList && lines.size > 1) {
+            return splitJsonAware(trimmed)
+        }
+
+        // Case 3: Base64-encoded body
+        val flat = trimmed.replace("\r", "").replace("\n", "")
+        return try {
+            val clean = flat.replace("-", "+").replace("_", "/")
+            val padded = when (clean.length % 4) { 2 -> "$clean=="; 3 -> "$clean="; else -> clean }
+            val decoded = String(Base64.decode(padded, Base64.DEFAULT)).trim()
+            splitJsonAware(decoded)
+        } catch (_: Exception) {
+            splitJsonAware(trimmed)
+        }
+    }
+
+    /**
+     * Splits a multi-entry string into individual profile entries.
+     * Handles: URI lines, compact JSON objects on single lines, and
+     * multi-line pretty-printed JSON objects by brace-matching.
+     */
+    private fun splitJsonAware(text: String): List<String> {
+        val results = mutableListOf<String>()
+        var depth = 0
+        val current = StringBuilder()
+        var inJson = false
+
+        for (line in text.lines()) {
+            val l = line.trim()
+            if (l.isEmpty()) {
+                if (inJson && depth == 0 && current.isNotEmpty()) {
+                    results.add(current.toString().trim())
+                    current.clear()
+                    inJson = false
+                }
+                continue
+            }
+
+            if (!inJson && (l.startsWith("{") || l.startsWith("["))) {
+                inJson = true
+            }
+
+            if (inJson) {
+                current.append(line).append('\n')
+                depth += l.count { it == '{' || it == '[' } - l.count { it == '}' || it == ']' }
+                if (depth <= 0) {
+                    results.add(current.toString().trim())
+                    current.clear()
+                    inJson = false
+                    depth = 0
+                }
+            } else {
+                // Plain URI or base64 entry
+                if (l.isNotEmpty()) results.add(l)
+            }
+        }
+        if (current.isNotEmpty()) results.add(current.toString().trim())
+        return results.filter { it.isNotBlank() }
     }
 
     fun buildProfileFromUri(uri: String, subscriptionId: Long?): ProfileEntity {
         val trimmed = uri.trim()
         if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
             val json = JSONObject(trimmed)
-            val name = json.optString("remarks", "Imported Profile")
+            val name = extractNameFromJson(json)
             return ProfileEntity(name = name, uri = "internal://json", configJson = V2RayConfigConverter.convertIfNeeded(trimmed), subscriptionId = subscriptionId)
         }
 
@@ -134,58 +236,131 @@ object ClipboardParser {
         val scheme = parsed.scheme
         val displayName = extractDisplayName(uri)
         val params = parseQuery(parsed.rawQuery)
-        
-        val outbound = when (scheme) {
+
+        val proxyServer = when (scheme) {
+            "vmess" -> {
+                val b64 = uri.removePrefix("vmess://").trim()
+                try { JSONObject(String(android.util.Base64.decode(b64, android.util.Base64.DEFAULT))).optString("add", "") } catch (_: Exception) { "" }
+            }
+            else -> parsed.host ?: ""
+        }
+
+        val xrayOutbound = when (scheme) {
             "vless" -> buildVlessOutbound(parsed, params)
             "vmess" -> buildVmessOutbound(uri)
             "ss", "shadowsocks" -> buildShadowsocksOutbound(parsed)
             "trojan" -> buildTrojanOutbound(parsed, params)
             else -> throw IllegalArgumentException("Protocol $scheme not supported")
         }
+        val sbOutbounds = V2RayConfigConverter.convertOutboundsPublic(JSONArray().put(xrayOutbound))
+        val proxyOutbound = sbOutbounds.optJSONObject(0)
+            ?: throw IllegalArgumentException("Failed to convert outbound for $scheme")
 
-        val xray = JSONObject().apply {
-            put("outbounds", JSONArray().put(outbound))
-            
-            put("dns", JSONObject().apply {
-                put("queryStrategy", "UseIPv4")
-                put("servers", JSONArray().apply {
-                    put(JSONObject().apply {
-                        put("address", "https://dns.comss.one/dns-query")
-                        put("skipFallback", true)
-                        put("queryStrategy", "UseIPv4")
-                    })
-                    put(JSONObject().apply { put("address", "1.1.1.1"); put("skipFallback", false) })
-                    put(JSONObject().apply { put("address", "77.88.8.8"); put("skipFallback", false) })
-                })
-            })
-            
-            put("routing", JSONObject().apply {
-                put("domainStrategy", "IPIfNonMatch")
-                put("rules", JSONArray().apply {
-                    put(JSONObject().apply {
-                        put("outboundTag", "proxy")
-                        put("domain", JSONArray(listOf(
-                            "habr.com", "4pda.to", "4pda.ru", "kemono.su", "jut.su",
-                            "kara.su", "theins.ru", "tvrain.ru", "echo.msk.ru",
-                            "the-village.ru", "snob.ru", "novayagazeta.ru", "moscowtimes.ru"
-                        )))
-                    })
-                    put(JSONObject().apply {
-                        put("outboundTag", "direct")
-                        put("domain", JSONArray(listOf(
-                           "geosite:category-ru"
-                        )))
-                    })
-                    put(JSONObject().apply {
-                        put("outboundTag", "direct")
-                        put("ip", JSONArray(listOf("geoip:ru", "geoip:private")))
-                    })
-                })
-            })
-        }
-        val configJson = V2RayConfigConverter.convertV2RayToSingBox(xray)
-
+        val configJson = buildMinimalSingBoxConfig(proxyOutbound, proxyServer)
         return ProfileEntity(name = displayName, uri = uri, configJson = configJson, subscriptionId = subscriptionId)
+    }
+
+    private fun buildMinimalSingBoxConfig(proxyOutbound: JSONObject, proxyServer: String): String {
+        val sb = JSONObject()
+
+        sb.put("log", JSONObject().apply {
+            put("level", "info")
+            put("timestamp", true)
+        })
+
+        val proxyDomains = JSONArray().apply {
+            if (proxyServer.isNotEmpty() && !proxyServer[0].isDigit()) put(proxyServer)
+        }
+        sb.put("dns", JSONObject().apply {
+            put("servers", JSONArray().apply {
+                put(JSONObject().apply {
+                    put("tag", "dns-remote")
+                    put("address", "https://1.1.1.1/dns-query")
+                    put("address_resolver", "dns-direct")
+                    put("detour", "proxy")
+                })
+                put(JSONObject().apply {
+                    put("tag", "dns-direct")
+                    put("address", "8.8.8.8")
+                    put("detour", "direct")
+                })
+                put(JSONObject().apply {
+                    put("tag", "dns-block")
+                    put("address", "rcode://success")
+                })
+            })
+            put("rules", JSONArray().apply {
+                // Resolve proxy server hostname directly (anti-loop)
+                put(JSONObject().apply {
+                    put("outbound", JSONArray().put("any"))
+                    put("server", "dns-direct")
+                })
+                if (proxyDomains.length() > 0) {
+                    put(JSONObject().apply {
+                        put("domain", proxyDomains)
+                        put("server", "dns-direct")
+                    })
+                }
+            })
+            put("final", "dns-remote")
+            put("strategy", "prefer_ipv4")
+            put("independent_cache", true)
+        })
+
+        sb.put("inbounds", JSONArray().apply {
+            put(JSONObject().apply {
+                put("type", "tun")
+                put("tag", "tun-in")
+                put("address", JSONArray().apply {
+                    put("172.19.0.1/30")
+                    put("fdfe:dcba:9876::1/126")
+                })
+                put("mtu", 1500)
+                put("auto_route", true)
+                put("strict_route", true)
+                put("stack", "mixed")
+                put("sniff", true)
+                put("sniff_override_destination", true)
+            })
+        })
+
+        sb.put("outbounds", JSONArray().apply {
+            put(proxyOutbound)
+            put(JSONObject().apply { put("type", "direct"); put("tag", "direct") })
+            put(JSONObject().apply { put("type", "block"); put("tag", "block") })
+        })
+
+        sb.put("route", JSONObject().apply {
+            put("auto_detect_interface", false)
+            put("final", "proxy")
+            put("rules", JSONArray().apply {
+                put(JSONObject().apply { put("protocol", "dns"); put("action", "hijack-dns") })
+                put(JSONObject().apply { put("port", 53); put("action", "hijack-dns") })
+                put(JSONObject().apply { put("protocol", JSONArray().put("bittorrent")); put("outbound", "direct") })
+                put(JSONObject().apply { put("ip_is_private", true); put("outbound", "direct") })
+                if (proxyDomains.length() > 0) {
+                    put(JSONObject().apply { put("domain", proxyDomains); put("outbound", "direct") })
+                }
+                put(JSONObject().apply { put("rule_set", "geosite-ru"); put("outbound", "direct") })
+                put(JSONObject().apply { put("rule_set", "geoip-ru"); put("outbound", "direct") })
+            })
+            put("rule_set", JSONArray().apply {
+                put(JSONObject().apply {
+                    put("tag", "geosite-ru")
+                    put("type", "local")
+                    put("format", "binary")
+                    put("path", "geosite-ru.srs")
+                })
+                put(JSONObject().apply {
+                    put("tag", "geoip-ru")
+                    put("type", "local")
+                    put("format", "binary")
+                    put("path", "geoip-ru.srs")
+                })
+            })
+        })
+
+        return sb.toString(2).replace("\\/", "/")
     }
 
     private fun buildVlessOutbound(parsed: URI, params: Map<String, String>): JSONObject = JSONObject().apply {

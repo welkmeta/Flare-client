@@ -313,7 +313,7 @@ object SingBoxManager {
             patchedConfig = injectAdvancedSettings(patchedConfig, context)
 
             Log.i(TAG, "Calling startOrReloadService…")
-            boxService?.startOrReloadService(patchedConfig, overrideOptions)
+            boxService?.startOrReloadService(patchedConfig, OverrideOptions())
             if (flare.client.app.BuildConfig.DEBUG) Log.i(TAG, "startOrReloadService completed")
 
             startLogTail()

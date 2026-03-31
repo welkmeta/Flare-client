@@ -13,7 +13,7 @@ import flare.client.app.data.model.SubscriptionEntity
 
 @Database(
     entities = [ProfileEntity::class, SubscriptionEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -31,13 +31,22 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "flare_client.db"
-                ).addMigrations(MIGRATION_1_2)
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .build().also { INSTANCE = it }
             }
 
         private val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE profiles ADD COLUMN serverDescription TEXT")
+            }
+        }
+
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE subscriptions ADD COLUMN upload INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE subscriptions ADD COLUMN download INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE subscriptions ADD COLUMN total INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE subscriptions ADD COLUMN expire INTEGER NOT NULL DEFAULT 0")
             }
         }
     }

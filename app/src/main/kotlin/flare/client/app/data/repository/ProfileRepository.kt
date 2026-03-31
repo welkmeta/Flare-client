@@ -44,6 +44,9 @@ class ProfileRepository(
  
     suspend fun updateProfileConfig(id: Long, configJson: String) =
         profileDao.updateConfigJson(id, configJson)
+
+    suspend fun updateProfile(id: Long, name: String, configJson: String) =
+        profileDao.updateProfile(id, name, configJson)
  
     suspend fun updateSubscription(id: Long, name: String, url: String) =
         subscriptionDao.updateSubscription(id, name, url)
@@ -53,4 +56,7 @@ class ProfileRepository(
 
     suspend fun deleteStandaloneProfiles() =
         profileDao.deleteStandaloneProfiles()
+
+    suspend fun updateSubscription(subscription: SubscriptionEntity) =
+        subscriptionDao.update(subscription)
 }
