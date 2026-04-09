@@ -5,7 +5,6 @@ import java.util.Locale
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** Completely rewrites Xray/V2Ray configuration to Sing-box 1.13 format. */
 object V2RayConfigConverter {
 
     fun convertIfNeeded(json: String): String {
@@ -73,29 +72,23 @@ object V2RayConfigConverter {
             }
         }
 
-        // 2b. Extract routing rules for DNS and Route
         val xrayRouting = xray.optJSONObject("routing")
         val xrayRules = xrayRouting?.optJSONArray("rules")
-        
         val routingRulesObjects = mutableListOf<JSONObject>()
         val requiredRuleSets = mutableSetOf<String>()
         val directRuleSets = mutableSetOf<String>()
         val directDomains = JSONArray()
 
-        // 2c. Parse balancers and create urltest outbounds
         val xrayBalancers = xrayRouting?.optJSONArray("balancers")
         val balancerTags = mutableSetOf<String>()
         var firstBalancerTag = ""
-        
         if (xrayBalancers != null) {
             for (i in 0 until xrayBalancers.length()) {
                 val b = xrayBalancers.optJSONObject(i) ?: continue
                 val bTag = b.optString("tag", "")
                 if (bTag.isEmpty()) continue
-                
                 val selectors = b.optJSONArray("selector")
                 val matchedOutbounds = mutableListOf<String>()
-                
                 if (selectors != null) {
                     for (j in 0 until selectors.length()) {
                         val sel = selectors.optString(j, "")
@@ -103,14 +96,12 @@ object V2RayConfigConverter {
                         for (k in 0 until sbOutbounds.length()) {
                             val ob = sbOutbounds.optJSONObject(k) ?: continue
                             val obTag = ob.optString("tag", "")
-                            // Xray selector checks if outbound tag contains the selector string
                             if (obTag.contains(sel) && !matchedOutbounds.contains(obTag)) {
                                 matchedOutbounds.add(obTag)
                             }
                         }
                     }
                 }
-                
                 if (matchedOutbounds.isNotEmpty()) {
                     val urltestOb = JSONObject().apply {
                         put("type", "urltest")
@@ -136,23 +127,18 @@ object V2RayConfigConverter {
                 val xRule = xrayRules.optJSONObject(i) ?: continue
                 val outboundTag = xRule.optString("outboundTag", xRule.optString("outbound", ""))
                 val balancerTag = xRule.optString("balancerTag", "")
-                
                 val actualOutTag = if (balancerTag.isNotEmpty() && balancerTags.contains(balancerTag)) {
                     balancerTag
                 } else if (balancerTag.isNotEmpty()) {
-                    balancerTag // Even if it wasn't valid in our list, try to keep it 
+                    balancerTag
                 } else {
                     outboundTag
                 }
-                
                 if (actualOutTag.isEmpty()) continue
 
                 val sbRule = JSONObject()
                 var hasContent = false
 
-                // --- Domain rules ---
-                // xray prefixes: geosite: / domain: (suffix) / full: (exact) / regexp: / keyword:
-                // sing-box fields: rule_set / domain_suffix / domain / domain_regex / domain_keyword
                 val domains = xRule.optJSONArray("domain")
                 if (domains != null && domains.length() > 0) {
                     val domainSuffixes  = JSONArray()
@@ -195,7 +181,6 @@ object V2RayConfigConverter {
                                 if (dom.isNotEmpty()) domainKeywords.put(dom)
                             }
                             d.isNotEmpty() -> {
-                                // Bare domain in xray = suffix match in sing-box
                                 domainSuffixes.put(d)
                                 if (actualOutTag == "direct" || actualOutTag == "block") directDomains.put(d)
                             }
@@ -207,7 +192,6 @@ object V2RayConfigConverter {
                     if (domainKeywords.length()  > 0) { sbRule.put("domain_keyword",  domainKeywords);  hasContent = true }
                 }
 
-                // --- IP rules ---
                 val ips = xRule.optJSONArray("ip")
                 if (ips != null && ips.length() > 0) {
                     val rawIps = JSONArray()
@@ -234,8 +218,6 @@ object V2RayConfigConverter {
                     if (rawIps.length() > 0)  { sbRule.put("ip_cidr", rawIps);     hasContent = true }
                 }
 
-                // --- Port rules ---
-                // xray "port" field: "80", "80,443", or "1000-2000"
                 val port = xRule.optString("port", "")
                 if (port.isNotEmpty()) {
                     val portInts   = JSONArray()
@@ -248,11 +230,9 @@ object V2RayConfigConverter {
                     if (portRanges.length() > 0) { sbRule.put("port_range", portRanges); hasContent = true }
                 }
 
-                // --- Network rule (tcp/udp) ---
                 val network = xRule.optString("network", "")
                 if (network.isNotEmpty()) { sbRule.put("network", network); hasContent = true }
 
-                // --- Protocol rule ---
                 val protocol = xRule.optString("protocol", "")
                 if (protocol.isNotEmpty()) {
                     sbRule.put("protocol", JSONArray(protocol.split(",").map { it.trim() }))
@@ -279,7 +259,6 @@ object V2RayConfigConverter {
             }
             val servers = xrayDns.optJSONArray("servers")
             if (servers != null && servers.length() > 0) {
-                // First server → remote (proxy) DNS
                 fun extractAddr(s: Any?): String = when (s) {
                     is JSONObject -> s.optString("address", "")
                     is String    -> s
@@ -287,7 +266,6 @@ object V2RayConfigConverter {
                 }
                 val first = extractAddr(servers.opt(0))
                 if (first.isNotEmpty()) primaryDns = first
-                // Second server → direct (fallback) DNS, used for bootstrap
                 for (i in 1 until servers.length()) {
                     val addr = extractAddr(servers.opt(i))
                     if (addr.isNotEmpty() && !addr.startsWith("localhost") && !addr.startsWith("https://")) {
@@ -371,8 +349,6 @@ object V2RayConfigConverter {
         sb.put("inbounds", sbInbounds)
 
         sb.put("outbounds", sbOutbounds)
-        
-        // Find default proxy tag for final routing
         var primaryProxyTag = "proxy"
         if (firstBalancerTag.isNotEmpty()) {
             primaryProxyTag = firstBalancerTag
@@ -390,21 +366,18 @@ object V2RayConfigConverter {
                 JSONObject().apply {
                     put("auto_detect_interface", false)
                     put("final", primaryProxyTag)
-                    
                     val sbRules = JSONArray().apply {
                         put(JSONObject().apply { put("protocol", "dns"); put("action", "hijack-dns") })
                         put(JSONObject().apply { put("port", 53); put("action", "hijack-dns") })
+                        put(JSONObject().apply { put("action", "sniff") })
                     }
-                    
                     for (rule in routingRulesObjects) {
                         sbRules.put(rule)
                     }
 
-                    // Loop prevention rule
                     if (proxyDomains.length() > 0) {
                         sbRules.put(JSONObject().apply { put("domain", proxyDomains); put("outbound", "direct") })
                     }
-                    
                     val sbRuleSets = JSONArray()
                     for (rs in requiredRuleSets) {
                         sbRuleSets.put(
@@ -427,7 +400,6 @@ object V2RayConfigConverter {
         return sb.toString(2).replace("\\/", "/")
     }
 
-    /** Public wrapper to convert a JSONArray of v2ray outbounds to sing-box format. */
     fun convertOutboundsPublic(xrayOutbounds: JSONArray): JSONArray = convertOutbounds(xrayOutbounds)
 
     private fun convertOutbounds(xrayOutbounds: JSONArray): JSONArray {
@@ -452,7 +424,6 @@ object V2RayConfigConverter {
                 val flow = sbOb.optString("flow", "")
                 val hasReality = sbOb.optJSONObject("tls")?.has("reality") ?: false
 
-                // Vision and Reality are fundamentally incompatible with multiplexing in sing-box
                 if (mux.optBoolean("enabled", false) && !flow.contains("vision") && !hasReality) {
                     sbOb.put(
                             "multiplex",
@@ -535,7 +506,6 @@ object V2RayConfigConverter {
                 if (sni.isNotEmpty()) tls.put("server_name", sni)
                 val fp = s.optString("fingerprint", "chrome")
 
-                // Add utls block (mandatory for reality and recommended for tls)
                 val utlsObj =
                         JSONObject().apply {
                             put("enabled", true)
@@ -597,7 +567,6 @@ object V2RayConfigConverter {
     }
 
     private fun createTunInbound(xray: JSONObject): JSONObject {
-        // Defaults
         var mtu = 1500
         var stack = "mixed"
         var ipv4Addr = "172.19.0.1/30"
@@ -610,14 +579,12 @@ object V2RayConfigConverter {
                 val inbType = inb.optString("type", inb.optString("protocol", ""))
 
                 if (inbType == "tun") {
-                    // Read MTU, stack, address from existing tun inbound (e.g. sing-box JSON passed as xray)
                     val srcMtu = inb.optInt("mtu", 0)
                     if (srcMtu > 0) mtu = srcMtu
 
                     val srcStack = inb.optString("stack", "")
                     if (srcStack.isNotEmpty()) stack = srcStack
 
-                    // Address may be array ["ip4/prefix", "ip6/prefix"] or string
                     val addrField = inb.opt("address")
                     when {
                         addrField is JSONArray && addrField.length() >= 2 -> {
@@ -634,7 +601,6 @@ object V2RayConfigConverter {
                     }
                 }
 
-                // xray sniffing check
                 if (inb.optJSONObject("sniffing")?.optBoolean("enabled", false) == true) {
                     sniffingEnabled = true
                 }
@@ -652,8 +618,6 @@ object V2RayConfigConverter {
             put("auto_route", true)
             put("strict_route", true)
             put("stack", stack)
-            put("sniff", sniffingEnabled)
-            put("sniff_override_destination", sniffingEnabled)
         }
     }
 
@@ -675,11 +639,9 @@ object V2RayConfigConverter {
     }
 
     private fun fixSingBox(obj: JSONObject): String {
-        // 1. Handle rule_set placement (Move from route to top level)
         val route = obj.optJSONObject("route")
         if (route != null && route.has("rule_set")) {
             val ruleSets = route.optJSONArray("rule_set")
-            // Ensure it's placed at the root, but only if not already there with same content
             if (!obj.has("rule_set")) {
                 obj.put("rule_set", ruleSets)
                 Log.d("V2RayConfigConverter", "Moved rule_set from route to root")
@@ -687,7 +649,6 @@ object V2RayConfigConverter {
             route.remove("rule_set")
         }
 
-        // 1b. Catch "rule-set" (dash) as well for older/alternate builds
         if (route != null && route.has("rule-set")) {
             val ruleSets = route.optJSONArray("rule-set")
             if (!obj.has("rule-set") && !obj.has("rule_set")) {
@@ -703,8 +664,6 @@ object V2RayConfigConverter {
         obj.optJSONArray("inbounds")?.let { inbs ->
             for (i in 0 until inbs.length()) {
                 inbs.optJSONObject(i)?.takeIf { it.optString("type") == "tun" }?.apply {
-                    put("sniff", true)
-                    put("sniff_override_destination", true)
                     put("auto_route", true)
                     put("strict_route", true)
                     remove("dns_hijack")
@@ -720,7 +679,6 @@ object V2RayConfigConverter {
         val dnsRules = dns.optJSONArray("rules") ?: JSONArray().also { dns.put("rules", it) }
         val dnsRulesStr = dnsRules.toString()
 
-        // Fix DNS Deadlocks (Resolve proxy server domains directly)
         val outbounds = obj.optJSONArray("outbounds")
         if (outbounds != null) {
             val proxyDomains = JSONArray()
@@ -748,11 +706,8 @@ object V2RayConfigConverter {
             route.put("auto_detect_interface", true)
             val rules = route.optJSONArray("rules") ?: JSONArray().also { route.put("rules", it) }
 
-            // Add hijack-dns if not present at the start
-
-            // Modern sing-box (1.8+) handles DNS hijack automatically for TUN inbounds.
-            // Remove any deprecated hijack-dns actions from rules to prevent crashes.
             val newRules = JSONArray()
+            newRules.put(JSONObject().apply { put("action", "sniff") })
             for (i in 0 until rules.length()) {
                 val rule = rules.optJSONObject(i) ?: continue
                 if (rule.optString("action") == "hijack-dns") continue
@@ -763,7 +718,6 @@ object V2RayConfigConverter {
             }
             route.put("rules", newRules)
 
-            // Clean up deprecated geosite/geoip and migrate to rule_set
             for (i in 0 until newRules.length()) {
                 val rule = newRules.optJSONObject(i) ?: continue
                 if (rule.has("geosite")) {
@@ -790,7 +744,6 @@ object V2RayConfigConverter {
                 }
             }
 
-            // 5. Ensure rule_set definitions exist at top level if referred to in any rules
             val routeStr = route.toString()
             if (routeStr.contains("geosite-ru") || routeStr.contains("geoip-ru")) {
                 val ruleSets =

@@ -14,17 +14,30 @@ android {
         applicationId = "flare.client.app"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
-        
+        versionCode = 6
+        versionName = "1.1.1"
         renderscriptTargetApi = 31
         renderscriptSupportModeEnabled = true
+    }
+
+    signingConfigs {
+        create("release") {
+            storeFile = file("path")
+            storePassword = "password"
+            keyAlias = "release"
+            keyPassword = "password"
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.getByName("release")
+        }
+
+        getByName("debug") {
+            applicationIdSuffix = ".test"
         }
     }
 
@@ -39,11 +52,15 @@ android {
 
     buildFeatures {
         viewBinding = true
+        buildConfig = true
     }
 
     packaging {
         jniLibs {
             useLegacyPackaging = true
+        }
+        resources {
+            excludes += "/META-INF/versions/9/OSGI-INF/MANIFEST.MF"
         }
     }
 }
@@ -66,5 +83,8 @@ dependencies {
     implementation(libs.activity.ktx)
     implementation(libs.fragment.ktx)
     implementation(libs.blurview)
+    implementation(libs.sshj)
+    implementation(libs.bouncycastle.prov)
+    implementation(libs.bouncycastle.kix)
     implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.aar"))))
 }

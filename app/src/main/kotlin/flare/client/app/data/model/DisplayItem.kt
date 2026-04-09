@@ -1,8 +1,5 @@
 package flare.client.app.data.model
 
-/**
- * UI display models (not database entities) used by the adapter.
- */
 sealed class DisplayItem {
     enum class CornerType {
         ALL, TOP, BOTTOM, NONE
@@ -12,6 +9,7 @@ sealed class DisplayItem {
         val entity: SubscriptionEntity,
         val profiles: List<ProfileEntity>,
         val isExpanded: Boolean,
+        val isRefreshing: Boolean = false,
         val cornerType: CornerType = CornerType.ALL
     ) : DisplayItem()
 
@@ -26,5 +24,5 @@ sealed class DisplayItem {
 sealed class PingState {
     object None : PingState()
     object Loading : PingState()
-    data class Result(val latency: Long, val isError: Boolean = false) : PingState()
+    data class Result(val latency: Long, val isError: Boolean = false, val errorMessage: String? = null) : PingState()
 }

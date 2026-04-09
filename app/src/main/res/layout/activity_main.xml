@@ -16,13 +16,11 @@
             android:clipChildren="false"
             android:clipToPadding="false">
 
-
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/layout_home"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent">
 
-                <!-- ── Power button (slightly above center) ──────── -->
                 <androidx.constraintlayout.widget.Guideline
                     android:id="@+id/guideline_vertical_center"
                     android:layout_width="wrap_content"
@@ -64,7 +62,6 @@
                         android:background="@drawable/bg_connect_button_v3"
                         android:stateListAnimator="@null" />
 
-                    <!-- Default state: Power Icon (Dimmed / Off) -->
                     <ImageView
                         android:id="@+id/iv_connect_icon"
                         android:layout_width="56dp"
@@ -72,11 +69,8 @@
                         android:layout_gravity="center"
                         android:translationY="-2dp"
                         android:src="@drawable/ic_power"
-                        app:tint="#A0A5D6" />
+                        app:tint="@color/btn_connect_icon_tint" />
 
-
-
-                    <!-- Active state: Power Icon (Glowing / On) -->
                     <ImageView
                         android:id="@+id/iv_stop_icon"
                         android:layout_width="56dp"
@@ -103,7 +97,6 @@
                     app:layout_constraintStart_toStartOf="@id/btn_connect_container"
                     app:layout_constraintEnd_toEndOf="@id/btn_connect_container" />
 
-                <!-- ── Profile list (below timer) ────────────────────── -->
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/rv_profiles"
                     android:layout_width="0dp"
@@ -119,7 +112,6 @@
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintEnd_toEndOf="parent" />
 
-                <!-- ── Bottom area ─────────────────────────────────────── -->
                 <LinearLayout
                     android:id="@+id/layout_bottom_actions"
                     android:layout_width="wrap_content"
@@ -253,23 +245,28 @@
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintBottom_toBottomOf="parent" />
 
-            <TextView
-                android:id="@+id/tv_servers_placeholder"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Скоро тут появится возможность создавать свой прокси сервер"
-                android:textColor="@color/text_primary"
-                android:textSize="18sp"
-                android:fontFamily="@font/geologica_medium"
+            <include
+                android:id="@+id/layout_custom_servers_container"
+                layout="@layout/layout_servers"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
                 android:visibility="gone"
-                android:gravity="center"
-                android:padding="32dp"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintBottom_toBottomOf="parent" />
 
-            <!-- ── JSON Editor Layout ────────────────────────────────── -->
+            <include
+                android:id="@+id/layout_onboarding"
+                layout="@layout/layout_onboarding"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:visibility="gone"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent" />
+
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/layout_json_editor"
                 android:layout_width="match_parent"
@@ -396,14 +393,12 @@
 
     </eightbitlab.com.blurview.BlurTarget>
 
-    <!-- Moving SlidingBottomNav outside BlurTarget as a sibling to avoid circular rendering -->
     <flare.client.app.ui.widget.SlidingBottomNav
         android:id="@+id/bottom_nav"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom" />
 
-    <!-- Notifications stay on the absolute top -->
     <include
         android:id="@+id/notification_include"
         layout="@layout/layout_notification"

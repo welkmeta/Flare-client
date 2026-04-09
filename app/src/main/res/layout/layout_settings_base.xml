@@ -17,7 +17,6 @@
         android:orientation="vertical"
         android:padding="20dp">
 
-        <!-- Toolbar Back -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -44,7 +43,6 @@
                 android:layout_marginStart="8dp" />
         </LinearLayout>
 
-        <!-- Split Tunneling Section -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -60,9 +58,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:layout_marginBottom="24dp">
+            android:layout_marginBottom="4dp">
 
-            <!-- Toggle Split Tunneling -->
             <LinearLayout
                 android:id="@+id/btn_toggle_split_tunneling"
                 android:layout_width="match_parent"
@@ -89,7 +86,6 @@
                     app:trackTint="@color/accent" />
             </LinearLayout>
 
-            <!-- Sub-items for Split Tunneling -->
             <LinearLayout
                 android:id="@+id/layout_split_tunneling_sub"
                 android:layout_width="match_parent"
@@ -135,7 +131,17 @@
             </LinearLayout>
         </LinearLayout>
 
-        <!-- Autostart Section -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/split_tunnel_desc"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp"
+            android:fontFamily="@font/geologica_regular"
+            android:layout_marginBottom="24dp"
+            android:layout_marginStart="4dp"
+            android:alpha="0.7" />
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -161,7 +167,6 @@
                 android:background="@drawable/bg_grouped_all"
                 android:paddingHorizontal="16dp"
                 android:gravity="center_vertical">
-                
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -194,7 +199,6 @@
             </LinearLayout>
         </LinearLayout>
 
-        <!-- Notifications Section -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -218,8 +222,10 @@
                 android:layout_height="64dp"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
-                android:background="@drawable/bg_grouped_all"
-                android:paddingHorizontal="16dp">
+                android:background="@drawable/bg_grouped_top"
+                android:paddingHorizontal="16dp"
+                android:clickable="true"
+                android:focusable="true">
 
                 <TextView
                     android:layout_width="0dp"
@@ -235,9 +241,193 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     app:thumbTint="@color/white"
-                    app:trackTint="@color/accent" />
+                    app:trackTint="@color/accent"
+                    android:clickable="false" />
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginStart="16dp"
+                android:background="@color/divider_color" />
+
+            <LinearLayout
+                android:id="@+id/btn_toggle_best_profile_notif"
+                android:layout_width="match_parent"
+                android:layout_height="64dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/bg_grouped_bottom"
+                android:paddingHorizontal="16dp"
+                android:clickable="true"
+                android:focusable="true">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/settings_label_best_profile_notif"
+                    android:textColor="@color/text_primary"
+                    android:textSize="16sp"
+                    android:fontFamily="@font/geologica_regular" />
+
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/sw_best_profile_notif"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    app:thumbTint="@color/white"
+                    app:trackTint="@color/accent"
+                    android:clickable="false" />
             </LinearLayout>
         </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/settings_header_best_profile"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp"
+            android:fontFamily="@font/geologica_medium"
+            android:layout_marginBottom="8dp"
+            android:layout_marginStart="4dp" />
+
+        <LinearLayout
+            android:id="@+id/block_best_profile"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginBottom="12dp">
+
+            <LinearLayout
+                android:id="@+id/btn_toggle_best_profile"
+                android:layout_width="match_parent"
+                android:layout_height="64dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/bg_grouped_all"
+                android:paddingHorizontal="16dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/settings_label_best_profile"
+                    android:textColor="@color/text_primary"
+                    android:textSize="16sp"
+                    android:fontFamily="@font/geologica_regular" />
+
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/sw_best_profile"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    app:thumbTint="@color/white"
+                    app:trackTint="@color/accent" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/layout_best_profile_sub"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginStart="16dp"
+                    android:background="@color/divider_color" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="64dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:background="@drawable/bg_grouped_middle"
+                    android:paddingHorizontal="16dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/settings_label_best_profile_interval"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp"
+                        android:fontFamily="@font/geologica_regular" />
+
+                    <EditText
+                        android:id="@+id/et_best_profile_interval"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:minWidth="50dp"
+                        android:background="@null"
+                        android:gravity="end"
+                        android:hint="@string/settings_hint_best_profile_interval"
+                        android:textColorHint="@color/text_secondary"
+                        android:textColor="@color/accent"
+                        android:textSize="16sp"
+                        android:fontFamily="@font/geologica_medium"
+                        android:inputType="number"
+                        android:imeOptions="actionDone" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="с"
+                        android:textColor="@color/accent"
+                        android:textSize="16sp"
+                        android:fontFamily="@font/geologica_medium"
+                        android:layout_marginStart="2dp" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginStart="16dp"
+                    android:background="@color/divider_color" />
+
+                <LinearLayout
+                    android:id="@+id/btn_best_profile_only_connected"
+                    android:layout_width="match_parent"
+                    android:layout_height="64dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:background="@drawable/bg_grouped_bottom"
+                    android:paddingHorizontal="16dp"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/settings_label_best_profile_only_connected"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp"
+                        android:fontFamily="@font/geologica_regular" />
+
+                    <TextView
+                        android:id="@+id/tv_best_profile_only_connected_value"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/option_yes"
+                        android:textColor="@color/accent"
+                        android:textSize="16sp"
+                        android:fontFamily="@font/geologica_medium" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/settings_desc_best_profile"
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp"
+            android:fontFamily="@font/geologica_regular"
+            android:layout_marginBottom="24dp"
+            android:layout_marginStart="4dp"
+            android:layout_marginEnd="4dp"
+            android:alpha="0.8" />
 
     </LinearLayout>
 </androidx.core.widget.NestedScrollView>

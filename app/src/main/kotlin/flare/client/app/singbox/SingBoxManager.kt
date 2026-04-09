@@ -14,15 +14,6 @@ import java.io.FileReader
 import org.json.JSONArray
 import org.json.JSONObject
 
-/**
- * Manages the sing-box VPN core using the libbox AAR library.
- *
- * Architecture (matches SFA / hiddify-next pattern):
- * 1. We start sing-box with a config that includes a TUN inbound (auto_route: true).
- * 2. sing-box calls openTun(TunOptions) when it wants to open the TUN device.
- * 3. We build VpnService.Builder from the TunOptions sing-box provides and return the fd.
- * 4. sing-box owns the TUN lifecycle; we only provide the fd.
- */
 object SingBoxManager {
 
     private const val TAG = "SingBoxManager"
@@ -67,7 +58,6 @@ object SingBoxManager {
             } catch (_: Exception) {}
             Log.i(TAG, "sing-box log file: ${lf.absolutePath}")
 
-            // Catch Go runtime panics
             try {
                 Libbox.redirectStderr(lf.absolutePath)
                 Log.i(TAG, "sing-box stderr redirected")
@@ -107,10 +97,6 @@ object SingBoxManager {
 
             val platform =
                     object : PlatformInterface {
-                        /**
-                         * Called by sing-box for every outbound socket fd it creates. We protect it
-                         * so traffic bypasses the VPN tunnel (no routing loop).
-                         */
                         override fun autoDetectInterfaceControl(fd: Int) {
                             vpnService?.protect(fd)
                         }
@@ -131,11 +117,6 @@ object SingBoxManager {
                         override fun includeAllNetworks(): Boolean = false
                         override fun localDNSTransport(): LocalDNSTransport? = LocalResolver
 
-                        /**
-                         * sing-box calls this when it wants to open the TUN interface. We build
-                         * VpnService.Builder from the TunOptions sing-box provides. This is the
-                         * correct SFA/hiddify pattern — NOT pre-building the TUN.
-                         */
                         override fun openTun(options: TunOptions?): Int {
                             Log.i(
                                     TAG,
@@ -155,7 +136,6 @@ object SingBoxManager {
                                     if (settings.isSplitTunnelingEnabled &&
                                                     settings.splitTunnelingApps.isNotEmpty()
                                     ) {
-                                        // Prevent conflict with disallowed apps
                                         for (pkg in settings.splitTunnelingApps) {
                                             try {
                                                 builder.addAllowedApplication(pkg)
@@ -212,7 +192,6 @@ object SingBoxManager {
                                         }
 
                                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                            // Android 13+ route configuration
                                             val v4routes = opts.inet4RouteAddress
                                             if (v4routes.hasNext()) {
                                                 while (v4routes.hasNext()) {
@@ -233,7 +212,6 @@ object SingBoxManager {
                                                 builder.addRoute("::", 0)
                                             }
                                         } else {
-                                            // Pre-Android 13 route configuration
                                             val v4range = opts.inet4RouteRange
                                             if (v4range.hasNext()) {
                                                 while (v4range.hasNext()) {
@@ -279,7 +257,6 @@ object SingBoxManager {
                                     return -1
                                 }
 
-                                // Close old pfd if any (shouldn't happen normally)
                                 tunPfd?.close()
                                 tunPfd = pfd
 
@@ -304,6 +281,13 @@ object SingBoxManager {
 
             boxService = Libbox.newCommandServer(handler, platform)
 
+            try {
+                boxService?.start()
+                if (flare.client.app.BuildConfig.DEBUG) Log.i(TAG, "CommandServer started")
+            } catch (e: Exception) {
+                Log.e(TAG, "CommandServer.start() failed: ${e.message}", e)
+            }
+
             val logFilePath = logFile?.absolutePath
             var patchedConfig =
                     if (logFilePath != null) {
@@ -313,8 +297,13 @@ object SingBoxManager {
             patchedConfig = injectAdvancedSettings(patchedConfig, context)
 
             Log.i(TAG, "Calling startOrReloadService…")
-            boxService?.startOrReloadService(patchedConfig, OverrideOptions())
-            if (flare.client.app.BuildConfig.DEBUG) Log.i(TAG, "startOrReloadService completed")
+            try {
+                boxService?.startOrReloadService(patchedConfig, OverrideOptions())
+                if (flare.client.app.BuildConfig.DEBUG) Log.i(TAG, "startOrReloadService completed")
+            } catch (e: Exception) {
+                Log.e(TAG, "startOrReloadService failed: ${e.message}", e)
+                throw e
+            }
 
             startLogTail()
 
@@ -353,7 +342,6 @@ object SingBoxManager {
         callback(0L, 0L)
     }
 
-
     private fun startLogTail() {
         val file = logFile ?: return
         stopLogTail()
@@ -361,7 +349,6 @@ object SingBoxManager {
                 Thread(
                         {
                             try {
-                                // Wait for sing-box to start writing logs
                                 Thread.sleep(800)
                                 if (!file.exists()) {
                                     Log.w(
@@ -375,18 +362,15 @@ object SingBoxManager {
                                         TAG,
                                         "[sb-core] === Log tail started, size=${file.length()} ==="
                                 )
-                                // Read from beginning — file is cleared before each session
                                 while (!Thread.currentThread().isInterrupted) {
                                     val line = reader.readLine()
                                     if (line != null) {
-                                        // Removed Log.i("SB-Core", line) to reduce noise
                                     } else {
                                         Thread.sleep(150)
                                     }
                                 }
                                 reader.close()
                             } catch (_: InterruptedException) {
-                                // normal stop
                             } catch (e: Exception) {
                                 Log.w(TAG, "Log tail error: ${e.message}")
                             }
@@ -404,10 +388,6 @@ object SingBoxManager {
         logTailThread = null
     }
 
-    /**
-     * Copies the sing-box internal log to Downloads directory for easy access without root. Call
-     * this after stopping the VPN to retrieve logs.
-     */
     fun copySingBoxLog(): String? {
         val src = logFile ?: return null
         if (!src.exists()) return null
@@ -428,13 +408,6 @@ object SingBoxManager {
         }
     }
 
-    /**
-     * Patches the sing-box JSON config to add `log.output` path.
-     *
-     * In sing-box 1.11+, internal logs go through the internal log system (not stderr). Setting
-     * `log.output` in JSON config makes the core write logs to that file. Without this,
-     * sing-box.log is always empty even with redirectStderr().
-     */
     private fun injectLogOutput(configJson: String, logFilePath: String): String {
         return try {
             val obj = JSONObject(configJson)
@@ -520,7 +493,6 @@ object SingBoxManager {
                         Log.i(TAG, "injectAdvancedSettings: added dns-fakeip server")
                     }
 
-                    // Append query_type rule (after existing rules, so per-domain overrides win)
                     val dnsRules =
                             dns.optJSONArray("rules") ?: JSONArray().also { dns.put("rules", it) }
                     var hasQueryTypeRule = false
@@ -552,7 +524,6 @@ object SingBoxManager {
             val outbounds =
                     obj.optJSONArray("outbounds") ?: return obj.toString(2).replace("\\/", "/")
 
-            // Find proxy outbound index
             var proxyIndex = -1
             for (i in 0 until outbounds.length()) {
                 if (outbounds.optJSONObject(i)?.optString("tag") == "proxy") {
@@ -574,21 +545,17 @@ object SingBoxManager {
             if (settings.isFragmentationEnabled) {
                 val tls = proxyOutbound.optJSONObject("tls")
                 if (tls != null) {
-                    // Map packet type → which fragment mode to enable
                     val packetType = settings.packetType
                     when (packetType) {
                         "1-3" -> {
-                            // TCP-level record fragmentation only
                             tls.put("record_fragment", true)
                         }
                         else -> {
-                            // "tlshello" or anything else → TLS handshake fragmentation (default)
                             tls.put("fragment", true)
-                            tls.put("record_fragment", true) // also enable record for max compat
+                            tls.put("record_fragment", true)
                         }
                     }
 
-                    // Use fragmentInterval directly as ms delay (single number, e.g. "10")
                     val intervalMs = settings.fragmentInterval.trim().toIntOrNull() ?: 10
                     tls.put("fragment_fallback_delay", "${intervalMs}ms")
 
@@ -615,13 +582,11 @@ object SingBoxManager {
                     val type = ob.optString("type")
                     if (type == "direct" || type == "block" || type == "dns") continue
 
-                    // Vision (xtls-rprx-vision) is incompatible with mux — remove flow field
-                    if (ob.has("flow")) {
-                        ob.put("flow", "")
-                        Log.i(
-                                TAG,
-                                "injectAdvancedSettings: cleared 'flow' on outbound '${ob.optString("tag")}' (mux requires no flow)"
-                        )
+                    val flow = ob.optString("flow", "")
+                    val hasReality = ob.optJSONObject("tls")?.has("reality") ?: false
+
+                    if (flow.contains("vision") || hasReality) {
+                        continue
                     }
 
                     ob.put(
@@ -629,8 +594,12 @@ object SingBoxManager {
                             JSONObject().apply {
                                 put("enabled", true)
                                 put("protocol", protocol)
+                                put("max_connections", 4)
+                                put("min_streams", 4)
                                 put("max_streams", maxStreams)
-                                put("padding", padding)
+                                if (protocol == "smux") {
+                                    put("padding", padding)
+                                }
                             }
                     )
                     Log.i(

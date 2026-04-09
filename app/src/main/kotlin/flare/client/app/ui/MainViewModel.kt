@@ -21,6 +21,7 @@ import flare.client.app.R
 import android.util.Log
 import org.json.JSONObject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
@@ -42,6 +43,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private var timerJob: kotlinx.coroutines.Job? = null
     private val expandedSubs = MutableStateFlow<Set<Long>>(emptySet())
+    private val _refreshingSubs = MutableStateFlow<Set<Long>>(emptySet())
+    val refreshingSubs: StateFlow<Set<Long>> = _refreshingSubs.asStateFlow()
+
+    private var autoUpdateJob: kotlinx.coroutines.Job? = null
 
     enum class ConnectionState { DISCONNECTED, CONNECTING, CONNECTED }
     private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
@@ -77,11 +82,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         repository.getAllProfiles(),
         expandedSubs,
         _selectedProfileId,
-        _pingStates
-    ) { subs, allProfiles, expanded, selId, pings ->
+        _pingStates,
+        _refreshingSubs
+    ) { args ->
+        @Suppress("UNCHECKED_CAST")
+        val subs = args[0] as List<SubscriptionEntity>
+        val allProfiles = args[1] as List<ProfileEntity>
+        val expanded = args[2] as Set<Long>
+        val selId = args[3] as Long?
+        val pings = args[4] as Map<Long, PingState>
+        val refreshing = args[5] as Set<Long>
+
         val profilesBySub = allProfiles.groupBy { it.subscriptionId }
         val standalone = allProfiles.filter { it.subscriptionId == null }
-        buildDisplayList(subs, standalone, profilesBySub, expanded, selId, pings)
+        buildDisplayList(subs, standalone, profilesBySub, expanded, selId, pings, refreshing)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private val vpnReceiver = object : BroadcastReceiver() {
@@ -108,8 +122,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             0
         }
         app.registerReceiver(vpnReceiver, IntentFilter(FlareVpnService.BROADCAST_STATE), flags)
-        
-        // Sync state if VPN is already running
         if (flare.client.app.singbox.SingBoxManager.isRunning) {
             _connectionState.value = ConnectionState.CONNECTED
             startTimer()
@@ -117,6 +129,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch { _selectedProfileId.value = repository.getSelectedProfile()?.id }
         startAutoUpdateJob()
+        startBestProfileJob()
     }
 
     override fun onCleared() {
@@ -175,9 +188,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val method = if (settings.pingType == "TCP") "TCP" else "ICMP"
                 profiles.forEach { profile ->
                     launch {
-                        val result = flare.client.app.util.PingHelper.pingDirect(profile, method)
-                        _pingStates.update { it.toMutableMap().apply { 
-                            this[profile.id] = PingState.Result(result, result < 0) 
+                        val (latency, error) = flare.client.app.util.PingHelper.pingDirect(profile, method)
+                        _pingStates.update { it.toMutableMap().apply {
+                            this[profile.id] = PingState.Result(latency, latency < 0, error)
                         } }
                     }
                 }
@@ -188,9 +201,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     profiles = profiles,
                     testUrl = settings.pingTestUrl,
                     httpMethod = httpMethod
-                ) { id, latency ->
-                    _pingStates.update { it.toMutableMap().apply { 
-                        this[id] = PingState.Result(latency, latency < 0) 
+                ) { id, latency, error ->
+                    _pingStates.update { it.toMutableMap().apply {
+                        this[id] = PingState.Result(latency, latency < 0, error)
                     } }
                 }
             }
@@ -241,7 +254,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val profile = repository.getSelectedProfile() ?: return@launch
             val app = getApplication<Application>()
-            
             val settings = SettingsManager(app)
             val configWithSettings = patchMtu(profile.configJson, settings.mtu, settings.tunStack)
 
@@ -249,38 +261,43 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             if (vpnIntent != null) { _importEvent.emit(ImportEvent.NeedPermission(vpnIntent)); return@launch }
             _connectionState.value = ConnectionState.CONNECTING
             _connectionState.value = ConnectionState.CONNECTING
-            androidx.core.content.ContextCompat.startForegroundService(app, Intent(app, FlareVpnService::class.java).apply { 
+            val intent = Intent(app, FlareVpnService::class.java).apply {
                 action = FlareVpnService.ACTION_START
                 putExtra(FlareVpnService.EXTRA_CONFIG, configWithSettings)
                 putExtra(FlareVpnService.EXTRA_PROFILE_NAME, profile.name)
-            })
+            }
+            if (settings.isStatusNotificationEnabled) {
+                androidx.core.content.ContextCompat.startForegroundService(app, intent)
+            } else {
+                app.startService(intent)
+            }
         }
     }
 
     private fun stopVpn() { val app = getApplication<Application>(); app.startService(Intent(app, FlareVpnService::class.java).apply { action = FlareVpnService.ACTION_STOP }) }
-    private fun startTimer() { 
+    private fun startTimer() {
         timerJob?.cancel()
-        timerJob = viewModelScope.launch { 
+        timerJob = viewModelScope.launch {
             val baseTime = flare.client.app.singbox.SingBoxManager.startTime
             val start = if (baseTime > 0) baseTime else System.currentTimeMillis()
-            while (true) { 
+            while (true) {
                 _connectionTimerText.value = formatDuration(System.currentTimeMillis() - start)
-                delay(1000) 
-            } 
-        } 
+                delay(1000)
+            }
+        }
     }
     private fun stopTimer() { timerJob?.cancel(); timerJob = null; _connectionTimerText.value = "" }
     private fun formatDuration(ms: Long): String = String.format("%02d:%02d:%02d", ms/(3600000), (ms/60000)%60, (ms/1000)%60)
 
-    private fun buildDisplayList(subs: List<SubscriptionEntity>, standalone: List<ProfileEntity>, profilesBySub: Map<Long?, List<ProfileEntity>>, expanded: Set<Long>, selId: Long?, pings: Map<Long, PingState>): List<DisplayItem> {
+    private fun buildDisplayList(subs: List<SubscriptionEntity>, standalone: List<ProfileEntity>, profilesBySub: Map<Long?, List<ProfileEntity>>, expanded: Set<Long>, selId: Long?, pings: Map<Long, PingState>, refreshing: Set<Long>): List<DisplayItem> {
         val items = mutableListOf<DisplayItem>()
         subs.forEach { sub ->
             val subProfiles = profilesBySub[sub.id] ?: emptyList()
             val isExpanded = sub.id in expanded
-            items += DisplayItem.SubscriptionItem(sub, subProfiles, isExpanded, if (isExpanded) DisplayItem.CornerType.TOP else DisplayItem.CornerType.ALL)
+            val isRefreshing = sub.id in refreshing
+            items += DisplayItem.SubscriptionItem(sub, subProfiles, isExpanded, isRefreshing, if (isExpanded) DisplayItem.CornerType.TOP else DisplayItem.CornerType.ALL)
             if (isExpanded) subProfiles.forEachIndexed { i, p -> items += DisplayItem.ProfileItem(p, p.id == selId, pings[p.id] ?: PingState.None, if (i == subProfiles.size - 1) DisplayItem.CornerType.BOTTOM else DisplayItem.CornerType.NONE) }
         }
-        
         if (standalone.isNotEmpty()) {
             val virtualSub = SubscriptionEntity(
                 id = VIRTUAL_SUB_ID,
@@ -288,7 +305,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 url = ""
             )
             val isExpanded = VIRTUAL_SUB_ID in expanded
-            items += DisplayItem.SubscriptionItem(virtualSub, standalone, isExpanded, if (isExpanded) DisplayItem.CornerType.TOP else DisplayItem.CornerType.ALL)
+            val isRefreshing = VIRTUAL_SUB_ID in refreshing
+            items += DisplayItem.SubscriptionItem(virtualSub, standalone, isExpanded, isRefreshing, if (isExpanded) DisplayItem.CornerType.TOP else DisplayItem.CornerType.ALL)
             if (isExpanded) {
                 standalone.forEachIndexed { i, p ->
                     items += DisplayItem.ProfileItem(p, p.id == selId, pings[p.id] ?: PingState.None, if (i == standalone.size - 1) DisplayItem.CornerType.BOTTOM else DisplayItem.CornerType.NONE)
@@ -298,15 +316,96 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return items
     }
 
-    private fun startAutoUpdateJob() {
+    fun startAutoUpdateJob() {
+        autoUpdateJob?.cancel()
         val settings = SettingsManager(getApplication())
-        viewModelScope.launch {
-            while (true) {
-                if (settings.isSubAutoUpdateEnabled) {
-                    val interval = settings.subAutoUpdateInterval.toLongOrNull() ?: 3600L
-                    if (System.currentTimeMillis() - settings.lastSubUpdateTime >= interval * 1000L) refreshAllSubscriptions()
+        if (!settings.isSubAutoUpdateEnabled) return
+
+        autoUpdateJob = viewModelScope.launch {
+            while (isActive) {
+                val intervalRaw = settings.subAutoUpdateInterval.toLongOrNull() ?: 3600L
+                val interval = if (intervalRaw < 30L) 30L else intervalRaw
+                val lastUpdate = settings.lastSubUpdateTime
+                val now = System.currentTimeMillis()
+                val nextUpdate = lastUpdate + interval * 1000L
+                val delayTime = nextUpdate - now
+                if (delayTime > 0) {
+                    delay(delayTime)
                 }
-                delay(60000)
+                if (isActive) {
+                    refreshAllSubscriptions()
+                }
+            }
+        }
+    }
+
+    private var bestProfileJob: kotlinx.coroutines.Job? = null
+
+    fun startBestProfileJob() {
+        val settings = SettingsManager(getApplication())
+        bestProfileJob?.cancel()
+        if (!settings.isBestProfileEnabled) return
+
+        bestProfileJob = viewModelScope.launch {
+            while (isActive) {
+                val rawInterval = settings.bestProfileInterval.toLongOrNull() ?: 1800L
+                val interval = if (rawInterval < 10L) 10L else rawInterval
+                delay(interval * 1000L)
+                val shouldRun = if (settings.isBestProfileOnlyIfConnected) {
+                    _connectionState.value == ConnectionState.CONNECTED
+                } else true
+                if (shouldRun) {
+                    selectBestProfile()
+                }
+            }
+        }
+    }
+
+    private suspend fun selectBestProfile() {
+        val settings = SettingsManager(getApplication())
+        val selectedId = _selectedProfileId.value ?: return
+        val allProfiles = repository.getAllProfiles().first()
+        val selectedProfile = allProfiles.find { it.id == selectedId } ?: return
+        val subId = selectedProfile.subscriptionId ?: return
+
+        val profiles = allProfiles.filter { it.subscriptionId == subId }
+        if (profiles.size <= 1) return
+
+        speedTestProfile(profiles)
+
+        val deadline = System.currentTimeMillis() + 15_000L
+        while (System.currentTimeMillis() < deadline) {
+            val pings = _pingStates.value
+            val allDone = profiles.all { p ->
+                val state = pings[p.id]
+                state is PingState.Result
+            }
+            if (allDone) break
+            delay(500)
+        }
+
+        val pings = _pingStates.value
+        val bestPair = profiles
+            .mapNotNull { p ->
+                val state = pings[p.id]
+                if (state is PingState.Result && !state.isError && state.latency >= 0) {
+                    p to state.latency
+                } else null
+            }
+            .minByOrNull { it.second }
+
+        val best = bestPair?.first
+        val latency = bestPair?.second
+
+        if (best != null) {
+            if (best.id != _selectedProfileId.value) {
+                selectProfile(best.id)
+            }
+            if (settings.isBestProfileNotificationEnabled) {
+                val app = getApplication<Application>()
+                val title = app.getString(R.string.notif_best_profile_title)
+                val body = app.getString(R.string.notif_best_profile_body, best.name, latency)
+                flare.client.app.ui.notification.AppNotificationManager.showSystemNotification(app, title, body)
             }
         }
     }
@@ -315,6 +414,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val subs = repository.getAllSubscriptions().first()
         if (subs.isEmpty()) return@withContext
         var successCount = 0
+        val selectedBefore = repository.getSelectedProfile()
         subs.forEach { sub ->
             try {
                 val result = withTimeoutOrNull(10000L) {
@@ -327,6 +427,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     successCount++
                 }
             } catch (e: Exception) { Log.e("MainViewModel", "Failed to refresh ${sub.name}", e) }
+        }
+        if (selectedBefore != null) {
+            val allAfter = repository.getAllProfiles().first()
+            val restored = allAfter.find {
+                it.uri == selectedBefore.uri &&
+                it.name == selectedBefore.name &&
+                it.subscriptionId == selectedBefore.subscriptionId
+            }
+            if (restored != null) {
+                repository.selectProfile(restored.id)
+                _selectedProfileId.value = restored.id
+            } else {
+                _selectedProfileId.value = null
+            }
         }
         val app = getApplication<Application>()
         if (successCount > 0) {
@@ -348,15 +462,34 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun refreshSubscription(sub: SubscriptionEntity) {
         viewModelScope.launch(Dispatchers.IO) {
+            _refreshingSubs.update { it + sub.id }
             try {
-                val result = withTimeoutOrNull(15000L) {
+                val selectedBefore = repository.getSelectedProfile()
+                val result = withTimeoutOrNull(10000L) {
                     ClipboardParser.parse(sub.url)
                 }
                 if (result is ClipboardParser.ParseResult.Subscription) {
                     repository.deleteProfilesBySubscription(sub.id)
                     db.profileDao().insertAll(result.profiles.map { it.copy(subscriptionId = sub.id) })
                     repository.updateSubscription(result.subscription.copy(id = sub.id))
-                    
+                    if (selectedBefore != null) {
+                        if (selectedBefore.subscriptionId == sub.id) {
+                            val allAfter = repository.getAllProfiles().first()
+                            val restored = allAfter.find {
+                                it.uri == selectedBefore.uri &&
+                                it.name == selectedBefore.name &&
+                                it.subscriptionId == sub.id
+                            }
+                            if (restored != null) {
+                                repository.selectProfile(restored.id)
+                                _selectedProfileId.value = restored.id
+                            } else {
+                                _selectedProfileId.value = null
+                            }
+                        } else {
+                            _selectedProfileId.value = selectedBefore.id
+                        }
+                    }
                     val app = getApplication<Application>()
                     flare.client.app.ui.notification.AppNotificationManager.showNotification(
                         flare.client.app.ui.notification.NotificationType.SUCCESS,
@@ -367,7 +500,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     val app = getApplication<Application>()
                     flare.client.app.ui.notification.AppNotificationManager.showNotification(
                         flare.client.app.ui.notification.NotificationType.ERROR,
-                        app.getString(R.string.sub_update_error),
+                        app.getString(R.string.sub_update_error_single),
                         3
                     )
                 }
@@ -376,9 +509,41 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val app = getApplication<Application>()
                 flare.client.app.ui.notification.AppNotificationManager.showNotification(
                     flare.client.app.ui.notification.NotificationType.ERROR,
-                    app.getString(R.string.sub_update_error),
+                    app.getString(R.string.sub_update_error_single),
                     3
                 )
+            } finally {
+                _refreshingSubs.update { it - sub.id }
+            }
+        }
+    }
+
+    fun addPrivateServer(host: String, configJson: String) {
+        viewModelScope.launch {
+            val app = getApplication<Application>()
+            val subName = app.getString(R.string.sub_my_servers)
+            val allSubs = repository.getAllSubscriptions().first()
+            var sub = allSubs.find { it.name == subName }
+            if (sub == null) {
+                val newSub = SubscriptionEntity(
+                    name = subName,
+                    url = "",
+                    total = Long.MAX_VALUE
+                )
+                val id = repository.insertSubscription(newSub)
+                sub = newSub.copy(id = id)
+            }
+            val profile = ProfileEntity(
+                name = host,
+                uri = "vless://$host",
+                configJson = configJson,
+                subscriptionId = sub.id
+            )
+            repository.insertProfile(profile)
+            val allProfiles = repository.getAllProfiles().first()
+            val savedProfile = allProfiles.find { it.configJson == configJson && it.subscriptionId == sub.id }
+            if (savedProfile != null) {
+                selectProfile(savedProfile.id)
             }
         }
     }

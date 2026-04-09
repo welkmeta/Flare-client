@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/common/process"
 	"github.com/sagernet/sing-box/common/sniff"
 	C "github.com/sagernet/sing-box/constant"
 	R "github.com/sagernet/sing-box/route/rule"
@@ -349,7 +348,7 @@ func (r *Router) PreMatch(metadata adapter.InboundContext, routeContext tun.Dire
 		}
 		directRouteOutbound = defaultOutbound.(adapter.DirectRouteOutbound)
 	}
-	if metadata.Destination.IsFqdn() {
+	if metadata.Destination.IsDomain() {
 		if len(metadata.DestinationAddresses) == 0 {
 			var strategy C.DomainStrategy
 			if metadata.Source.IsIPv4() {
@@ -415,7 +414,7 @@ func (r *Router) matchRule(
 		} else if metadata.Destination.IsIP() {
 			originDestination = metadata.Destination.AddrPort()
 		}
-		processInfo, fErr := process.FindProcessInfo(r.processSearcher, ctx, metadata.Network, metadata.Source.AddrPort(), originDestination)
+		processInfo, fErr := r.findProcessInfoCached(ctx, metadata.Network, metadata.Source.AddrPort(), originDestination)
 		if fErr != nil {
 			r.logger.InfoContext(ctx, "failed to search process: ", fErr)
 		} else {
@@ -427,8 +426,8 @@ func (r *Router) matchRule(
 				} else {
 					r.logger.InfoContext(ctx, "found process path: ", processInfo.ProcessPath)
 				}
-			} else if processInfo.AndroidPackageName != "" {
-				r.logger.InfoContext(ctx, "found package name: ", processInfo.AndroidPackageName)
+			} else if len(processInfo.AndroidPackageNames) > 0 {
+				r.logger.InfoContext(ctx, "found package name: ", strings.Join(processInfo.AndroidPackageNames, ", "))
 			} else if processInfo.UserId != -1 {
 				if processInfo.UserName != "" {
 					r.logger.InfoContext(ctx, "found user: ", processInfo.UserName)
@@ -790,7 +789,7 @@ func (r *Router) actionSniff(
 }
 
 func (r *Router) actionResolve(ctx context.Context, metadata *adapter.InboundContext, action *R.RuleActionResolve) error {
-	if metadata.Destination.IsFqdn() {
+	if metadata.Destination.IsDomain() {
 		var transport adapter.DNSTransport
 		if action.Server != "" {
 			var loaded bool

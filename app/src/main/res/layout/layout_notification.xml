@@ -38,11 +38,6 @@
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent" />
 
-    <!-- Progress bar at the bottom -->
-    <!-- Placing it at the bottom, matching constraints, but needing rounded corners.
-         Actually, a simple View is fine, but to fit nicely at bottom edge containing rounds,
-         it might overlap corners if it's full width. Alternatively we can give it horizontal margin or use a specific Shape.
-         Using horizontal margin to keep it inside the rounded border. -->
     <View
         android:id="@+id/v_notification_progress"
         android:layout_width="0dp"

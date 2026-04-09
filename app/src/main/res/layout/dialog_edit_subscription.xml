@@ -61,9 +61,58 @@
         android:paddingHorizontal="16dp"
         android:textSize="14sp"
         android:fontFamily="@font/geologica_regular"
-        android:layout_marginBottom="24dp"
+        android:layout_marginBottom="20dp"
         android:inputType="textUri"
         android:maxLines="1" />
+
+    <LinearLayout
+        android:id="@+id/layout_support"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone"
+        android:layout_marginBottom="24dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Поддержка"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp"
+            android:fontFamily="@font/geologica_regular"
+            android:layout_marginBottom="8dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/iv_support_web"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/ic_chrome"
+                android:padding="8dp"
+                android:background="@drawable/bg_edit_text_field"
+                android:contentDescription="Browse"
+                android:layout_marginEnd="12dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackground" />
+
+            <ImageView
+                android:id="@+id/iv_support_tg"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/ic_telegram"
+                android:padding="8dp"
+                android:background="@drawable/bg_edit_text_field"
+                android:contentDescription="Telegram"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackground" />
+        </LinearLayout>
+    </LinearLayout>
 
     <LinearLayout
         android:layout_width="match_parent"

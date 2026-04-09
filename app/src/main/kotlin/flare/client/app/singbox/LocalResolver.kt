@@ -20,7 +20,6 @@ import kotlin.coroutines.resume
 object LocalResolver : LocalDNSTransport {
     private const val TAG = "LocalResolver"
     private const val RCODE_NXDOMAIN = 3
-    
     private var connectivityManager: ConnectivityManager? = null
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
@@ -32,20 +31,15 @@ object LocalResolver : LocalDNSTransport {
         val cm = connectivityManager ?: return null
         val active = cm.activeNetwork
         val caps = cm.getNetworkCapabilities(active)
-        
         Log.d(TAG, "getActiveNetwork: active=$active, caps=$caps")
-        
         if (caps != null && !caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_VPN)) {
             Log.d(TAG, "getActiveNetwork: using active non-VPN network")
             return active
         }
-        
         for (network in cm.allNetworks) {
             val netCaps = cm.getNetworkCapabilities(network)
             Log.d(TAG, "getActiveNetwork: checking network=$network, caps=$netCaps")
             if (netCaps != null && netCaps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_NOT_VPN)) {
-                // Return any non-VPN network, even if it's not marked as having INTERNET
-                // (Android might remove INTERNET cap when VPN is primary)
                 if (netCaps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) ||
                     netCaps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_CELLULAR) ||
                     netCaps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET)) {
@@ -64,7 +58,7 @@ object LocalResolver : LocalDNSTransport {
     override fun exchange(ctx: ExchangeContext, message: ByteArray) {
         val network = getActiveNetwork()
         if (network == null) {
-            ctx.errnoCode(114514) // EREMOTERELEASE or similar fallback
+            ctx.errnoCode(114514)
             return
         }
 

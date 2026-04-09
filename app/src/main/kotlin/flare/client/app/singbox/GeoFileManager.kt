@@ -6,15 +6,6 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 
-/**
- * Downloads geoip.db and geosite.db from SagerNet GitHub Releases into the
- * app's private files directory (context.filesDir).
- *
- * sing-box resolves geo databases relative to the basePath set in SetupOptions,
- * which is context.filesDir in SingBoxManager.ensureSetup().
- *
- * Call [ensureGeoFiles] from a background thread before starting sing-box.
- */
 object GeoFileManager {
 
     private const val TAG = "GeoFileManager"
@@ -43,8 +34,6 @@ object GeoFileManager {
         val dir = context.filesDir
         return File(dir, GEOIP_FILE).exists() && File(dir, GEOSITE_FILE).exists()
     }
-
-    // Internal
 
     private fun downloadIfMissing(dest: File, url: String) {
         if (dest.exists() && dest.length() > 0) {

@@ -17,7 +17,6 @@
         android:orientation="vertical"
         android:padding="20dp">
 
-        <!-- Toolbar Back -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -32,19 +31,18 @@
                 android:padding="8dp"
                 android:src="@drawable/ic_arrow_left"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                app:tint="@color/white" />
+                app:tint="@color/text_primary" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/settings_ping_title"
-                android:textColor="@color/white"
+                android:textColor="@color/text_primary"
                 android:textSize="22sp"
                 android:fontFamily="@font/geologica_medium"
                 android:layout_marginStart="8dp" />
         </LinearLayout>
 
-        <!-- Ping Type Section -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -61,9 +59,8 @@
             android:columnCount="2"
             android:rowCount="2"
             android:alignmentMode="alignMargins"
-            android:layout_marginBottom="24dp">
+            android:layout_marginBottom="4dp">
 
-            <!-- GET -->
             <FrameLayout
                 android:id="@+id/btn_ping_type_get"
                 android:layout_width="0dp"
@@ -75,11 +72,12 @@
                 android:focusable="true">
 
                 <TextView
+                    android:id="@+id/tv_ping_type_get"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="center"
                     android:text="@string/settings_ping_type_get"
-                    android:textColor="@color/white"
+                    android:textColor="@color/text_primary"
                     android:textSize="14sp"
                     android:fontFamily="@font/geologica_regular"
                     android:gravity="center"
@@ -96,7 +94,6 @@
                     android:visibility="gone" />
             </FrameLayout>
 
-            <!-- HEAD -->
             <FrameLayout
                 android:id="@+id/btn_ping_type_head"
                 android:layout_width="0dp"
@@ -108,11 +105,12 @@
                 android:focusable="true">
 
                 <TextView
+                    android:id="@+id/tv_ping_type_head"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="center"
                     android:text="@string/settings_ping_type_head"
-                    android:textColor="@color/white"
+                    android:textColor="@color/text_primary"
                     android:textSize="14sp"
                     android:fontFamily="@font/geologica_regular"
                     android:gravity="center"
@@ -129,7 +127,6 @@
                     android:visibility="gone" />
             </FrameLayout>
 
-            <!-- TCP -->
             <FrameLayout
                 android:id="@+id/btn_ping_type_tcp"
                 android:layout_width="0dp"
@@ -141,11 +138,12 @@
                 android:focusable="true">
 
                 <TextView
+                    android:id="@+id/tv_ping_type_tcp"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="center"
                     android:text="@string/settings_ping_type_tcp"
-                    android:textColor="@color/white"
+                    android:textColor="@color/text_primary"
                     android:textSize="14sp"
                     android:fontFamily="@font/geologica_regular"
                     android:gravity="center"
@@ -162,7 +160,6 @@
                     android:visibility="gone" />
             </FrameLayout>
 
-            <!-- ICMP -->
             <FrameLayout
                 android:id="@+id/btn_ping_type_icmp"
                 android:layout_width="0dp"
@@ -174,11 +171,12 @@
                 android:focusable="true">
 
                 <TextView
+                    android:id="@+id/tv_ping_type_icmp"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="center"
                     android:text="@string/settings_ping_type_icmp"
-                    android:textColor="@color/white"
+                    android:textColor="@color/text_primary"
                     android:textSize="14sp"
                     android:fontFamily="@font/geologica_regular"
                     android:gravity="center"
@@ -197,7 +195,16 @@
 
         </GridLayout>
 
-        <!-- Test URL Section -->
+        <TextView
+            android:id="@+id/tv_ping_type_desc"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp"
+            android:fontFamily="@font/geologica_regular"
+            android:layout_marginBottom="24dp"
+            android:layout_marginStart="4dp"
+            android:alpha="0.7" />
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -242,7 +249,6 @@
             android:layout_marginStart="4dp"
             android:alpha="0.7" />
 
-        <!-- Ping Display Section -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -269,7 +275,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="@string/settings_label_ping_style"
-                android:textColor="@color/white"
+                android:textColor="@color/text_primary"
                 android:textSize="16sp"
                 android:fontFamily="@font/geologica_regular" />
 

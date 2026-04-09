@@ -15,27 +15,26 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
-import java.net.HttpURLConnection
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.Proxy
 import java.net.Socket
-import java.net.URL
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.regex.Pattern
+import java.net.ServerSocket
 
 object PingHelper {
     private const val TAG = "PingHelper"
 
-    // Semaphore limiting concurrent direct pings
     private val directSemaphore = Semaphore(10)
 
-    // Mutex to ensure only one libbox instance for batch testing
     private val batchMutex = Mutex()
 
     @Volatile private var libboxSetupDone = false
     private val setupLock = Any()
-    private val portCounter = AtomicInteger(20000)
 
     private fun ensureLibboxSetup(context: Context) {
         if (libboxSetupDone) return
@@ -60,20 +59,16 @@ object PingHelper {
         }
     }
 
-
-    // ── Direct ping (ICMP / TCP) ────────────────────────────────────────────
-
-    suspend fun pingDirect(profile: ProfileEntity, method: String): Long =
+    suspend fun pingDirect(profile: ProfileEntity, method: String): Pair<Long, String?> =
         withContext(Dispatchers.IO) {
-            val hostPort = extractHostPort(profile) ?: return@withContext -1L
+            val hostPort = extractHostPort(profile) ?: return@withContext (-1L to "Config Err")
             val host = hostPort.first
             val port = hostPort.second
 
-            // Pre-resolve DNS outside the timed block
             val ipAddress = try {
                 InetAddress.getByName(host).hostAddress
             } catch (e: Exception) {
-                return@withContext -1L
+                return@withContext (-1L to "DNS Fail")
             }
 
             directSemaphore.withPermit {
@@ -82,25 +77,30 @@ object PingHelper {
                         val startTime = System.nanoTime()
                         val process = Runtime.getRuntime()
                             .exec(arrayOf("ping", "-c", "1", "-W", "2", ipAddress))
-                        
                         val output = process.inputStream.bufferedReader().use { it.readText() }
                         val exitCode = process.waitFor()
-                        
                         if (exitCode == 0) {
                             val rtt = parseIcmpRtt(output)
-                            if (rtt != -1L) rtt else (System.nanoTime() - startTime) / 1_000_000
+                            val finalRtt = if (rtt != -1L) rtt else (System.nanoTime() - startTime) / 1_000_000
+                            finalRtt to null
                         } else {
-                            -1L
+                            -1L to "Unreachable"
                         }
                     } else {
                         val startTime = System.nanoTime()
                         Socket().use {
                             it.connect(InetSocketAddress(ipAddress, port), 3000)
                         }
-                        (System.nanoTime() - startTime) / 1_000_000
+                        ((System.nanoTime() - startTime) / 1_000_000) to null
                     }
+                } catch (e: java.net.SocketTimeoutException) {
+                    -1L to "Timeout"
+                } catch (e: java.net.ConnectException) {
+                    -1L to "Refused"
+                } catch (e: java.net.NoRouteToHostException) {
+                    -1L to "Unreachable"
                 } catch (e: Exception) {
-                    -1L
+                    -1L to (e.message ?: "Error")
                 }
             }
         }
@@ -120,23 +120,16 @@ object PingHelper {
         }
     }
 
-
-    // ── Proxy ping batch (parallel, up to 4 at once) ───────────────────────
-
     suspend fun pingProxyBatch(
         context: Context,
         profiles: List<ProfileEntity>,
         testUrl: String,
         httpMethod: String,
-        onResult: suspend (Long, Long) -> Unit
+        onResult: suspend (Long, Long, String?) -> Unit
     ) = withContext(Dispatchers.IO) {
         ensureLibboxSetup(context)
 
-        // Only one batch test can run at a time to avoid Libbox registration panics
         batchMutex.withLock {
-            val startPort = portCounter.getAndAdd(profiles.size)
-                .also { if (it > 29000) portCounter.set(20000) }
-
             val handler = object : CommandServerHandler {
                 override fun serviceStop() {}
                 override fun serviceReload() {}
@@ -166,10 +159,11 @@ object PingHelper {
             }
 
             val boxService = Libbox.newCommandServer(handler, platform)
+            val clashPort = findAvailablePort()
             try {
-                val batchConfig = buildBatchConfig(profiles, startPort)
+                val batchConfig = buildBatchConfig(profiles, testUrl, clashPort)
                 if (batchConfig == null) {
-                    profiles.forEach { onResult(it.id, -1L) }
+                    profiles.forEach { onResult(it.id, -1L, "Config Err") }
                     return@withLock
                 }
 
@@ -177,22 +171,86 @@ object PingHelper {
                     batchConfig.toString().replace("\\/", "/"),
                     OverrideOptions()
                 )
+                val okHttpClient = OkHttpClient.Builder()
+                    .connectTimeout(15, TimeUnit.SECONDS)
+                    .readTimeout(15, TimeUnit.SECONDS)
+                    .writeTimeout(15, TimeUnit.SECONDS)
+                    .build()
 
-                // Brief pause for the proxy listener to bind all ports and initialize outbounds
-                delay(1000)
+                var ready = false
+                val healthStart = System.currentTimeMillis()
+                while (!ready && System.currentTimeMillis() - healthStart < 5000) {
+                    try {
+                        val checkReq = Request.Builder().url("http://127.0.0.1:$clashPort/").get().build()
+                        okHttpClient.newCall(checkReq).execute().use {
+                            if (it.code != 0) ready = true
+                        }
+                    } catch (e: Exception) {
+                        delay(50)
+                    }
+                }
+                if (!ready) {
+                    Log.w(TAG, "Clash API failed to start on port $clashPort in time")
+                }
 
+                val semaphore = Semaphore(25)
                 coroutineScope {
-                    profiles.forEachIndexed { index, profile ->
-                        launch {
-                            val port = startPort + index
-                            val lat = measureLatency(testUrl, port, httpMethod)
-                            onResult(profile.id, lat)
+                    profiles.forEach { profile ->
+                        launch(Dispatchers.IO) {
+                            semaphore.withPermit {
+                                var rtt = -1L
+                                var errMsg: String? = null
+                                try {
+                                    val index = profiles.indexOf(profile)
+                                    val tag = "proxy-$index"
+                                    val url = "http://127.0.0.1:$clashPort/proxies/${java.net.URLEncoder.encode(tag, "UTF-8")}/delay?url=${java.net.URLEncoder.encode(testUrl, "UTF-8")}&timeout=10000"
+                                    val request = Request.Builder()
+                                        .url(url)
+                                        .get()
+                                        .build()
+                                    okHttpClient.newCall(request).execute().use { response ->
+                                        if (response.isSuccessful) {
+                                            val body = response.body?.string()
+                                            if (body != null) {
+                                                val json = JSONObject(body)
+                                                rtt = json.optLong("delay", -1L)
+                                                if (rtt == -1L) errMsg = "Timeout"
+                                            }
+                                        } else {
+                                            val body = response.body?.string() ?: ""
+                                            errMsg = try {
+                                                val msg = JSONObject(body).optString("message", "")
+                                                when {
+                                                    msg.contains("timeout", ignoreCase = true) -> "Timeout"
+                                                    msg.contains("TLS", ignoreCase = true) -> "TLS Failed"
+                                                    msg.contains("unreachable", ignoreCase = true) -> "Unreachable"
+                                                    msg.contains("connection refused", ignoreCase = true) -> "Refused"
+                                                    msg.contains("error occurred", ignoreCase = true) -> "Failed"
+                                                    msg.length > 20 -> msg.substring(0, 17) + ".."
+                                                    msg.isNotBlank() -> msg
+                                                    else -> "${response.code}"
+                                                }
+                                            } catch (_: Exception) {
+                                                "${response.code}"
+                                            }
+                                        }
+                                    }
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Ping failed for profile ${profile.id}: ${e.message}")
+                                    errMsg = when {
+                                        e is java.net.SocketTimeoutException -> "Timeout"
+                                        e.message?.contains("timeout", ignoreCase = true) == true -> "Timeout"
+                                        else -> "Error"
+                                    }
+                                }
+                                onResult(profile.id, rtt, errMsg)
+                            }
                         }
                     }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Batch ping failed (core start error): ${e.message}", e)
-                profiles.forEach { onResult(it.id, -1L) }
+                profiles.forEach { onResult(it.id, -1L, "Core err") }
             } finally {
                 try {
                     boxService.closeService()
@@ -202,18 +260,15 @@ object PingHelper {
         }
     }
 
-    private fun buildBatchConfig(profiles: List<ProfileEntity>, startPort: Int): JSONObject? {
+    private fun buildBatchConfig(profiles: List<ProfileEntity>, testUrl: String, clashPort: Int): JSONObject? {
         return try {
-            val inbounds = JSONArray()
             val outbounds = JSONArray()
-            val rules = JSONArray()
+            val proxyTags = ArrayList<String>()
 
             profiles.forEachIndexed { index, profile ->
                 val converted = V2RayConfigConverter.convertIfNeeded(profile.configJson)
                 val profileJson = JSONObject(converted)
                 val profileOutbounds = profileJson.optJSONArray("outbounds") ?: JSONArray()
-                
-                // Find main proxy tag
                 var mainProxyTag = ""
                 for (i in 0 until profileOutbounds.length()) {
                     val ob = profileOutbounds.optJSONObject(i) ?: continue
@@ -225,57 +280,61 @@ object PingHelper {
                 }
                 if (mainProxyTag.isBlank()) return@forEachIndexed
 
-                val newMainTag = "$mainProxyTag-$index"
+                val mainTagMapped = "proxy-$index"
+                proxyTags.add(mainTagMapped)
 
                 for (i in 0 until profileOutbounds.length()) {
                     val ob = profileOutbounds.optJSONObject(i) ?: continue
                     val t = ob.optString("type")
                     if (t == "direct" || t == "block" || t == "dns") continue
-                    
                     val oldTag = ob.optString("tag")
                     if (oldTag.isNotBlank()) {
-                        ob.put("tag", "$oldTag-$index")
+                        ob.put("tag", if (oldTag == mainProxyTag) mainTagMapped else "$oldTag-$index")
                     }
-                    
                     if (ob.has("outbounds")) {
                         val obList = ob.optJSONArray("outbounds")
                         if (obList != null) {
                             val newList = JSONArray()
                             for (j in 0 until obList.length()) {
-                                newList.put("${obList.optString(j)}-$index")
+                                val entry = obList.optString(j)
+                                newList.put(if (entry == mainProxyTag) mainTagMapped else "$entry-$index")
                             }
                             ob.put("outbounds", newList)
                         }
                     }
-                    
                     if (ob.has("detour")) {
                         val detourName = ob.optString("detour")
                         if (detourName.isNotBlank() && detourName != "direct" && detourName != "block") {
-                            ob.put("detour", "$detourName-$index")
+                            ob.put("detour", if (detourName == mainProxyTag) mainTagMapped else "$detourName-$index")
                         }
                     }
-                    
+
+                    ob.optJSONObject("tls")?.let { tls ->
+                        tls.put("utls", JSONObject().apply {
+                            put("enabled", true)
+                            put("fingerprint", "chrome")
+                        })
+                    }
                     outbounds.put(ob)
                 }
-
-                val inTag = "http-in-$index"
-
-                inbounds.put(JSONObject().apply {
-                    put("type", "mixed")
-                    put("tag", inTag)
-                    put("listen", "127.0.0.1")
-                    put("listen_port", startPort + index)
-                })
-
-                rules.put(JSONObject().apply {
-                    put("inbound", JSONArray().apply { put(inTag) })
-                    put("outbound", newMainTag)
-                })
             }
 
             if (outbounds.length() == 0) return null
 
+            outbounds.put(JSONObject().apply {
+                put("type", "urltest")
+                put("tag", "urltest-ping")
+                put("outbounds", JSONArray(proxyTags))
+                put("url", testUrl)
+                put("interval", "10m")
+            })
+
             JSONObject().apply {
+                put("experimental", JSONObject().apply {
+                    put("clash_api", JSONObject().apply {
+                        put("external_controller", "127.0.0.1:$clashPort")
+                    })
+                })
                 put("log", JSONObject().apply { put("level", "error") })
                 put("dns", JSONObject().apply {
                     put("servers", JSONArray().apply {
@@ -298,37 +357,18 @@ object PingHelper {
                     })
                     put("final", "dns-direct")
                 })
-                put("inbounds", inbounds)
+                put("inbounds", JSONArray())
                 put("outbounds", outbounds.apply {
                     put(JSONObject().apply { put("type", "direct"); put("tag", "direct") })
                     put(JSONObject().apply { put("type", "block"); put("tag", "block") })
                 })
                 put("route", JSONObject().apply {
                     put("auto_detect_interface", false)
-                    put("rules", rules)
                     put("final", "direct")
                 })
             }
         } catch (e: Exception) {
             null
-        }
-    }
-
-    private fun measureLatency(targetUrl: String, port: Int, httpMethod: String): Long {
-        val startTime = System.currentTimeMillis()
-        var conn: HttpURLConnection? = null
-        return try {
-            val proxy = Proxy(Proxy.Type.HTTP, InetSocketAddress("127.0.0.1", port))
-            conn = URL(targetUrl).openConnection(proxy) as HttpURLConnection
-            conn.requestMethod = httpMethod
-            conn.connectTimeout = 5000
-            conn.readTimeout = 5000
-            val code = conn.responseCode
-            if (code in 200..399) System.currentTimeMillis() - startTime else -1L
-        } catch (e: Exception) {
-            -1L
-        } finally {
-            conn?.disconnect()
         }
     }
 
@@ -355,5 +395,13 @@ object PingHelper {
     private suspend fun <T> Semaphore.withPermit(block: suspend () -> T): T {
         acquire()
         return try { block() } finally { release() }
+    }
+
+    private fun findAvailablePort(): Int {
+        return try {
+            ServerSocket(0).use { it.localPort }
+        } catch (e: Exception) {
+            9094
+        }
     }
 }

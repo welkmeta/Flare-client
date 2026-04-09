@@ -11,6 +11,7 @@ import android.graphics.Path
 import android.graphics.RadialGradient
 import android.graphics.RectF
 import android.graphics.Shader
+import android.content.res.Configuration
 import android.os.Build
 import android.util.AttributeSet
 import android.util.Log
@@ -26,7 +27,6 @@ import flare.client.app.R
 import kotlin.math.abs
 import kotlin.math.min
 
-
 class LiquidPillView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
@@ -34,13 +34,11 @@ class LiquidPillView @JvmOverloads constructor(
 ) : View(context, attrs, defStyleAttr) {
 
     private val dp = resources.displayMetrics.density
-    private val pillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            blendMode = android.graphics.BlendMode.SCREEN
-        } else {
-            xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.SCREEN)
-        }
-    }
+    private val isNightMode: Boolean
+        get() = (context.resources.configuration.uiMode and
+            Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+
+    private val pillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val pillBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 1.5f * dp
@@ -57,7 +55,6 @@ class LiquidPillView @JvmOverloads constructor(
     var glowAlpha = 0f
     var verticalExpansion = 0f
         set(value) { field = value; invalidate() }
-    
     private val glowCorePaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val glowOuterPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val pillInnerGlowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -72,22 +69,46 @@ class LiquidPillView @JvmOverloads constructor(
 
     internal fun updateShaders() {
         val h = pillHeight.takeIf { it > 0 } ?: return
+        val nightMode = isNightMode
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            pillPaint.blendMode = if (nightMode) android.graphics.BlendMode.SCREEN
+                                  else android.graphics.BlendMode.SRC_OVER
+        } else {
+            pillPaint.xfermode = if (nightMode)
+                android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.SCREEN)
+            else null
+        }
+
         pillPaint.shader = LinearGradient(
             0f, 0f, 0f, h,
             intArrayOf(Color.argb(220, 80, 200, 255), Color.argb(245, 0, 100, 255)),
             null, Shader.TileMode.CLAMP
         )
-        pillBorderPaint.shader = LinearGradient(
-            0f, 0f, 0f, h,
-            intArrayOf(
-                Color.argb(200, 255, 255, 255), 
-                Color.argb(40, 255, 255, 255), 
-                Color.argb(80, 0, 120, 255)
-            ),
-            floatArrayOf(0f, 0.45f, 1f),
-            Shader.TileMode.CLAMP
-        )
-        
+
+        if (nightMode) {
+            pillBorderPaint.shader = LinearGradient(
+                0f, 0f, 0f, h,
+                intArrayOf(
+                    Color.argb(200, 255, 255, 255),
+                    Color.argb(40, 255, 255, 255),
+                    Color.argb(80, 0, 120, 255)
+                ),
+                floatArrayOf(0f, 0.45f, 1f),
+                Shader.TileMode.CLAMP
+            )
+        } else {
+            pillBorderPaint.shader = LinearGradient(
+                0f, 0f, 0f, h,
+                intArrayOf(
+                    Color.argb(180, 120, 200, 255),
+                    Color.argb(60, 60, 140, 255),
+                    Color.argb(100, 0, 80, 200)
+                ),
+                floatArrayOf(0f, 0.45f, 1f),
+                Shader.TileMode.CLAMP
+            )
+        }
         pillInnerGlowPaint.shader = LinearGradient(
             0f, 0f, 0f, h,
             intArrayOf(Color.argb(100, 255, 255, 255), Color.argb(0, 255, 255, 255)),
@@ -102,12 +123,9 @@ class LiquidPillView @JvmOverloads constructor(
         val expansion = verticalExpansion * dp
         val halfH = (pillHeight / 2f) + expansion
         val radius = halfH
-        
         rect.set(leftBound, cy - halfH, rightBound, cy + halfH)
 
-        // Base glow for depth
         val effectiveGlowAlpha = (0.05f + glowAlpha * 0.95f)
-        
         val ambientMargin = 22f * dp
         glowRect.set(rect.left - ambientMargin, rect.top - ambientMargin, rect.right + ambientMargin, rect.bottom + ambientMargin)
         glowOuterPaint.shader = RadialGradient(
@@ -153,7 +171,6 @@ class LiquidPillView @JvmOverloads constructor(
     fun animateToBounds(newLeft: Float, newRight: Float, dur: Long = 380) {
         val sL = leftBound; val sR = rightBound
         ValueAnimator.ofFloat(0f, 1f).apply {
-            // Use sticky interpolator for viscosity
             duration = (dur * 1.2).toLong()
             interpolator = android.view.animation.AnticipateOvershootInterpolator(0.6f, 1.2f)
             addUpdateListener { v ->
@@ -184,8 +201,6 @@ class LiquidPillView @JvmOverloads constructor(
     }
 }
 
-
-// SlidingBottomNav — navigation panel with blur effect.
 class SlidingBottomNav @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
@@ -194,6 +209,7 @@ class SlidingBottomNav @JvmOverloads constructor(
 
     internal var currentTab = -1
     var onTabSelected: ((Int) -> Unit)? = null
+    var onArrowClick: (() -> Unit)? = null
 
     private val navContainerFrame: FrameLayout
     private val glassBlurView: BlurView
@@ -202,6 +218,12 @@ class SlidingBottomNav @JvmOverloads constructor(
     private val btnSettings: ImageView
     private val btnHome: ImageView
     private val btnServers: ImageView
+    private val navIconsRow: View
+    private val ivNavNext: ImageView
+    internal var isShrunk = false
+    private var isShrunkToHome = false
+
+    private lateinit var gestureDetector: android.view.GestureDetector
 
     init {
         LayoutInflater.from(context).inflate(R.layout.view_bottom_nav, this, true)
@@ -214,10 +236,30 @@ class SlidingBottomNav @JvmOverloads constructor(
         btnSettings = findViewById(R.id.iv_nav_settings)
         btnHome = findViewById(R.id.iv_nav_home)
         btnServers = findViewById(R.id.iv_nav_servers)
+        navIconsRow = findViewById(R.id.nav_icons_row)
+        ivNavNext = findViewById(R.id.iv_nav_next)
+
+        gestureDetector = android.view.GestureDetector(context, object : android.view.GestureDetector.SimpleOnGestureListener() {
+            override fun onDoubleTap(e: MotionEvent): Boolean {
+                val dp = resources.displayMetrics.density
+                val buf = 28 * dp
+                val isOnPill = !isShrunk && currentTab == 1 && (e.x >= liquidPill.leftBound - buf && e.x <= liquidPill.rightBound + buf)
+                val isOnHomeButton = isShrunkToHome && (e.x >= width / 2f - 32 * dp && e.x <= width / 2f + 32 * dp)
+                if (isOnPill || isOnHomeButton) {
+                    if (isShrunkToHome) expandFromHome()
+                    else shrinkToHome()
+                    return true
+                }
+                return false
+            }
+        })
 
         btnSettings.setOnClickListener { selectTab(0, true) }
         btnHome.setOnClickListener { selectTab(1, true) }
         btnServers.setOnClickListener { selectTab(2, true) }
+        ivNavNext.setOnClickListener {
+            if (!isShrunkToHome) onArrowClick?.invoke()
+        }
 
         glassBlurView.outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
         glassBlurView.clipToOutline = true
@@ -232,9 +274,7 @@ class SlidingBottomNav @JvmOverloads constructor(
             if (windowBg != null) {
                 builder.setFrameClearDrawable(windowBg)
             }
-            
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                // LiquidGlassShader будет обновлять RenderEffect в onLayout
                 val shader = LiquidGlassShader(glassBlurView)
                 liquidGlassShader = shader
             } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -247,7 +287,13 @@ class SlidingBottomNav @JvmOverloads constructor(
                     )
                 )
             } else {
-                builder.setOverlayColor(android.graphics.Color.argb(40, 255, 255, 255))
+                val isNightMode = (context.resources.configuration.uiMode and
+                    Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+                val overlayColor = if (isNightMode)
+                    android.graphics.Color.argb(40, 0, 0, 0)
+                else
+                    android.graphics.Color.argb(80, 255, 255, 255)
+                builder.setOverlayColor(overlayColor)
             }
         } catch (e: Exception) {
             Log.e("SlidingBottomNav", "BlurView setup failed: ${e.message}", e)
@@ -264,21 +310,25 @@ class SlidingBottomNav @JvmOverloads constructor(
             val pillH = glassBlurView.height.toFloat() - 14 * dp
             liquidPill.pillHeight = pillH
             liquidPill.updateShaders()
-            
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                val isNightMode = (context.resources.configuration.uiMode and
+                    Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+                val fgColor = if (isNightMode)
+                    android.graphics.Color.argb(160, 32, 34, 40)
+                else
+                    android.graphics.Color.argb(70, 210, 215, 225)
                 (liquidGlassShader as? LiquidGlassShader)?.update(
-                    left = 0f, top = 0f, 
-                    right = glassBlurView.width.toFloat(), 
+                    left = 0f, top = 0f,
+                    right = glassBlurView.width.toFloat(),
                     bottom = glassBlurView.height.toFloat(),
                     radiusLeftTop = 24f * dp, radiusRightTop = 24f * dp,
                     radiusRightBottom = 24f * dp, radiusLeftBottom = 24f * dp,
                     thickness = 5f * dp,
                     intensity = 1.6f,
                     index = 1.5f,
-                    foregroundColor = android.graphics.Color.argb(160, 32, 34, 40)
+                    foregroundColor = fgColor
                 )
             }
-            
             if (!isInitialized) {
                 isInitialized = true
                 selectTab(if (currentTab == -1) 1 else currentTab, false)
@@ -323,10 +373,16 @@ class SlidingBottomNav @JvmOverloads constructor(
     private var isDragging = false
     private var dsL = 0f; private var dsR = 0f; private var dsX = 0f
 
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        if (gestureDetector.onTouchEvent(ev)) return true
+        return super.dispatchTouchEvent(ev)
+    }
+
     override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
         if (ev.actionMasked == MotionEvent.ACTION_DOWN) {
-            val buf = 28 * resources.displayMetrics.density
-            if (ev.x >= liquidPill.leftBound - buf && ev.x <= liquidPill.rightBound + buf) {
+            val dp = resources.displayMetrics.density
+            val buf = 28 * dp
+            if (!isShrunk && ev.x >= liquidPill.leftBound - buf && ev.x <= liquidPill.rightBound + buf) {
                 isDragging = true
                 dsL = liquidPill.leftBound; dsR = liquidPill.rightBound; dsX = ev.rawX
                 liquidPill.animateGlow(1.0f, 100)
@@ -375,7 +431,7 @@ class SlidingBottomNav @JvmOverloads constructor(
     fun hide(animate: Boolean = true) {
         if (!animate) {
             visibility = View.GONE
-            translationY = height.toFloat() + 100f // Fallback if height is 0
+            translationY = height.toFloat() + 100f
             return
         }
         animate().translationY(height.toFloat() + 100f)
@@ -394,6 +450,120 @@ class SlidingBottomNav @JvmOverloads constructor(
         animate().translationY(0f)
             .setDuration(300)
             .setInterpolator(android.view.animation.DecelerateInterpolator())
+            .start()
+    }
+
+    fun shrinkToArrow() {
+        if (isShrunk) return
+        isShrunk = true
+        if (!isShrunkToHome) {
+            ivNavNext.setImageResource(R.drawable.ic_arrow_right)
+        }
+
+        val dp = resources.displayMetrics.density
+        val targetWidth = (64 * dp).toInt()
+        val originalWidth = navContainerFrame.width
+
+        val animator = ValueAnimator.ofInt(originalWidth, targetWidth)
+        animator.duration = 450
+        animator.interpolator = android.view.animation.AnticipateOvershootInterpolator(0.8f)
+        animator.addUpdateListener {
+            val params = navContainerFrame.layoutParams
+            params.width = it.animatedValue as Int
+            navContainerFrame.layoutParams = params
+        }
+        animator.start()
+
+        navIconsRow.animate().alpha(0f).setDuration(200).withEndAction {
+            navIconsRow.visibility = View.GONE
+        }.start()
+
+        liquidPill.animate().alpha(0f).setDuration(200).start()
+
+        ivNavNext.visibility = View.VISIBLE
+        ivNavNext.alpha = 0f
+        ivNavNext.scaleX = 0.5f
+        ivNavNext.scaleY = 0.5f
+        ivNavNext.animate()
+            .alpha(1f)
+            .scaleX(1f)
+            .scaleY(1f)
+            .setDuration(400)
+            .setStartDelay(150)
+            .setInterpolator(android.view.animation.OvershootInterpolator(1.4f))
+            .start()
+    }
+
+    fun shrinkToHome() {
+        if (isShrunk) return
+        isShrunkToHome = true
+        ivNavNext.setImageResource(R.drawable.ic_nav_home)
+        shrinkToArrow()
+    }
+
+    fun expandFromHome() {
+        if (!isShrunkToHome) return
+        isShrunkToHome = false
+        expandToTabs()
+    }
+
+    fun expandToTabs() {
+        if (!isShrunk) return
+        isShrunk = false
+        isShrunkToHome = false
+
+        val dp = resources.displayMetrics.density
+        val currentWidth = navContainerFrame.width
+        val parentWidth = (parent as View).width
+        val targetWidth = parentWidth - (40 * dp).toInt()
+
+        val animator = ValueAnimator.ofInt(currentWidth, targetWidth)
+        animator.duration = 450
+        animator.interpolator = android.view.animation.AnticipateOvershootInterpolator(0.8f)
+        animator.addUpdateListener {
+            val w = it.animatedValue as Int
+            val params = navContainerFrame.layoutParams
+            params.width = w
+            navContainerFrame.layoutParams = params
+
+            val tabW = w / 3f
+            val pad = 8 * dp
+            liquidPill.leftBound = (currentTab * tabW) + pad
+            liquidPill.rightBound = ((currentTab + 1) * tabW) - pad
+            liquidPill.invalidate()
+        }
+        animator.addListener(object : android.animation.AnimatorListenerAdapter() {
+            override fun onAnimationEnd(animation: android.animation.Animator) {
+                val params = navContainerFrame.layoutParams
+                params.width = LayoutParams.MATCH_PARENT
+                navContainerFrame.layoutParams = params
+                post {
+                    selectTab(currentTab, false)
+                }
+            }
+        })
+        animator.start()
+
+        ivNavNext.animate()
+            .alpha(0f)
+            .scaleX(0.5f)
+            .scaleY(0.5f)
+            .setDuration(200)
+            .withEndAction { ivNavNext.visibility = View.GONE }
+            .start()
+
+        navIconsRow.visibility = View.VISIBLE
+        navIconsRow.alpha = 0f
+        navIconsRow.animate()
+            .alpha(1f)
+            .setDuration(300)
+            .setStartDelay(200)
+            .start()
+
+        liquidPill.animate()
+            .alpha(1f)
+            .setDuration(300)
+            .setStartDelay(200)
             .start()
     }
 }

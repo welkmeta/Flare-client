@@ -59,15 +59,18 @@ class FlareVpnService : VpnService() {
     }
 
     private fun startVpn(configJson: String) {
-        val notification = buildNotification()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(
-                    NOTIF_ID,
-                    notification,
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
-            )
-        } else {
-            startForeground(NOTIF_ID, notification)
+        val settings = flare.client.app.data.SettingsManager(this)
+        if (settings.isStatusNotificationEnabled) {
+            val notification = buildNotification()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startForeground(
+                        NOTIF_ID,
+                        notification,
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+                )
+            } else {
+                startForeground(NOTIF_ID, notification)
+            }
         }
 
         serviceScope.launch { startVpnInternal(configJson) }
@@ -112,7 +115,7 @@ class FlareVpnService : VpnService() {
                 SingBoxManager.getTraffic { up, down ->
                     updateNotification(up, down)
                 }
-                kotlinx.coroutines.delay(1000)
+                delay(1000)
             }
         }
     }

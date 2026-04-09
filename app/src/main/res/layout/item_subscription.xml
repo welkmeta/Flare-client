@@ -1,127 +1,160 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
+<LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:minHeight="60dp"
-    android:paddingStart="16dp"
-    android:paddingEnd="16dp"
+    android:orientation="vertical"
     android:background="@drawable/bg_list_item">
 
-    <!-- Arrow indicator (rotates on expand) -->
-    <ImageView
-        android:id="@+id/iv_arrow"
-        android:layout_width="20dp"
-        android:layout_height="20dp"
-        android:src="@drawable/ic_arrow_right"
-        android:tint="@color/text_secondary"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent" />
-
-    <!-- Subscription info -->
-    <LinearLayout
-        android:layout_width="0dp"
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:layout_marginStart="12dp"
-        android:layout_marginEnd="8dp"
-        app:layout_constraintStart_toEndOf="@id/iv_arrow"
-        app:layout_constraintEnd_toStartOf="@+id/ll_actions"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent">
+        android:minHeight="60dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp">
 
-        <TextView
-            android:id="@+id/tv_sub_name"
-            android:layout_width="match_parent"
+        <ImageView
+            android:id="@+id/iv_arrow"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/ic_arrow_right"
+            android:tint="@color/text_secondary"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent" />
+
+        <LinearLayout
+            android:id="@+id/ll_actions_container"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="@color/text_primary"
-            android:textSize="15sp"
-            android:fontFamily="@font/geologica_medium"
-            android:maxLines="1"
-            android:ellipsize="end" />
+            android:minWidth="116dp"
+            android:orientation="vertical"
+            android:gravity="end"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent">
 
-        <FrameLayout
-            android:id="@+id/ll_traffic_container"
-            android:layout_width="match_parent"
-            android:layout_height="16dp"
-            android:layout_marginTop="4dp"
-            android:visibility="gone">
-            
-            <ProgressBar
-                android:id="@+id/pb_traffic"
-                style="?android:attr/progressBarStyleHorizontal"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:progressDrawable="@drawable/bg_progress_rounded"
-                android:max="10000" />
-                
-            <TextView
-                android:id="@+id/tv_traffic_info"
+            <LinearLayout
+                android:id="@+id/ll_actions"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:textColor="@color/white"
-                android:shadowColor="#80000000"
-                android:shadowDx="0"
-                android:shadowDy="0"
-                android:shadowRadius="4"
-                android:textSize="10sp"
-                android:fontFamily="@font/geologica_medium" />
-        </FrameLayout>
-    </LinearLayout>
+                android:orientation="horizontal">
 
-    <LinearLayout
-        android:id="@+id/ll_actions"
-        android:layout_width="wrap_content"
+                <ImageView
+                    android:id="@+id/iv_sync"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:padding="8dp"
+                    android:src="@drawable/ic_refresh"
+                    android:contentDescription="Update"
+                    app:tint="@color/text_secondary"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:layout_marginEnd="4dp" />
+
+                <ImageView
+                    android:id="@+id/iv_speed_test"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:padding="8dp"
+                    android:src="@drawable/ic_speedometer"
+                    android:contentDescription="Speed Test"
+                    app:tint="@color/text_secondary"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:layout_marginEnd="4dp" />
+
+                <ImageView
+                    android:id="@+id/iv_more_options"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:padding="8dp"
+                    android:src="@drawable/ic_more_vert"
+                    android:contentDescription="More Options"
+                    app:tint="@color/text_secondary"
+                    android:background="?attr/selectableItemBackgroundBorderless" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tv_expire_date"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text_secondary"
+                android:textSize="9sp"
+                android:fontFamily="@font/geologica_medium"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="8dp"
+            app:layout_constraintStart_toEndOf="@id/iv_arrow"
+            app:layout_constraintEnd_toStartOf="@+id/ll_actions_container"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent">
+
+            <TextView
+                android:id="@+id/tv_sub_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text_primary"
+                android:textSize="15sp"
+                android:fontFamily="@font/geologica_medium"
+                android:maxLines="1"
+                android:ellipsize="end" />
+
+            <FrameLayout
+                android:id="@+id/ll_traffic_container"
+                android:layout_width="match_parent"
+                android:layout_height="16dp"
+                android:layout_marginTop="4dp"
+                android:visibility="gone">
+                <ProgressBar
+                    android:id="@+id/pb_traffic"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:progressDrawable="@drawable/bg_progress_rounded"
+                    android:max="10000" />
+                <TextView
+                    android:id="@+id/tv_traffic_info"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:textColor="@color/text_primary"
+                    android:shadowColor="#80000000"
+                    android:shadowDx="0"
+                    android:shadowDy="0"
+                    android:shadowRadius="4"
+                    android:textSize="10sp"
+                    android:fontFamily="@font/geologica_medium" />
+            </FrameLayout>
+
+        </LinearLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <TextView
+        android:id="@+id/tv_description"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent">
-
-        <ImageView
-            android:id="@+id/iv_delete"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:padding="8dp"
-            android:src="@drawable/ic_close"
-            android:contentDescription="Delete"
-            app:tint="@color/text_secondary"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:layout_marginEnd="4dp" />
-
-        <ImageView
-            android:id="@+id/iv_speed_test"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:padding="8dp"
-            android:src="@drawable/ic_speedometer"
-            android:contentDescription="Speed Test"
-            app:tint="@color/text_secondary"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:layout_marginEnd="4dp" />
-
-        <ImageView
-            android:id="@+id/iv_more_options"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:padding="8dp"
-            android:src="@drawable/ic_more_vert"
-            android:contentDescription="More Options"
-            app:tint="@color/text_secondary"
-            android:background="?attr/selectableItemBackgroundBorderless" />
-
-    </LinearLayout>
+        android:layout_marginTop="-2dp"
+        android:layout_marginBottom="12dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:textColor="@color/text_secondary"
+        android:textSize="11sp"
+        android:fontFamily="@font/geologica_regular"
+        android:visibility="gone"
+        android:autoLink="web"
+        android:linksClickable="true" />
 
     <View
         android:id="@+id/view_separator"
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="0.5dp"
-        android:background="#33FFFFFF"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        android:background="#33FFFFFF" />
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+</LinearLayout>

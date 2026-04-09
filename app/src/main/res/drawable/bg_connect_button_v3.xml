@@ -3,113 +3,87 @@
     android:enterFadeDuration="400"
     android:exitFadeDuration="400">
 
-    <!-- Active (connected) state: Ultra-modern 3D Glowing Neon Volumetric -->
     <item android:state_activated="true">
         <layer-list>
-            <!-- 0. Outer Glow (Bright Blue-Purple) -->
             <item android:top="0dp" android:bottom="0dp" android:left="0dp" android:right="0dp">
                 <shape android:shape="oval">
-                    <!-- A bright glow radiating outward without canvas clipping -->
                     <gradient android:type="radial" android:gradientRadius="150dp" android:centerX="0.5" android:centerY="0.5" android:startColor="#DDBB00FF" android:centerColor="#882200FF" android:endColor="#00000000" />
                 </shape>
             </item>
 
-            <!-- 1. Deep Outer Drop Shadow (Far) -->
-            <!-- Shifted down for 3D depth, +50dp padding -->
             <item android:top="65dp" android:bottom="50dp" android:left="55dp" android:right="55dp">
                 <shape android:shape="oval">
                     <solid android:color="#88000000" />
                 </shape>
             </item>
 
-            <!-- 2. Outer Housing Rim (Physical base) -->
             <item android:top="52dp" android:bottom="60dp" android:left="53dp" android:right="53dp">
                 <shape android:shape="oval">
                     <gradient android:angle="90" android:startColor="#050616" android:endColor="#4A52A0" />
                 </shape>
             </item>
 
-            <!-- 3. The Main Button Body (Neon Volumetric Knob) -->
             <item android:top="58dp" android:bottom="66dp" android:left="59dp" android:right="59dp">
                 <shape android:shape="oval">
                     <gradient android:angle="135" android:startColor="#00FFFF" android:centerColor="#0066FF" android:endColor="#5500FF" />
                 </shape>
             </item>
-            
-            <!-- 3b. Glass Reflection on Button Surface -->
             <item android:top="58dp" android:bottom="66dp" android:left="59dp" android:right="59dp">
                 <shape android:shape="oval">
                     <gradient android:type="radial" android:gradientRadius="120dp" android:centerX="0.3" android:centerY="0.2" android:startColor="#BBFFFFFF" android:endColor="#00FFFFFF" />
                 </shape>
             </item>
 
-            <!-- 4. Center Soft Concave Dimple (Pressed inward effect) -->
             <item android:top="84dp" android:bottom="92dp" android:left="88dp" android:right="88dp">
                 <shape android:shape="oval">
-                    <!-- Reverse lighting: shadow at top-left, light at bottom-right simulates concave -->
                     <gradient android:angle="315" android:startColor="#55000000" android:centerColor="#11000000" android:endColor="#33FFFFFF" />
                 </shape>
             </item>
 
-            <!-- 5. Dimple deepest shadow -->
             <item android:top="98dp" android:bottom="106dp" android:left="102dp" android:right="102dp">
                 <shape android:shape="oval">
                     <gradient android:angle="270" android:startColor="#44000000" android:endColor="#00000000" />
                 </shape>
             </item>
-            
-            <!-- 6. Center Icon Glow (Active state) -->
             <item android:top="98dp" android:bottom="106dp" android:left="102dp" android:right="102dp">
                 <shape android:shape="oval">
-                    <!-- Glow radiating from where the icon sits -->
                     <gradient android:type="radial" android:gradientRadius="50dp" android:startColor="#8800FFFF" android:endColor="#00000000" />
                 </shape>
             </item>
         </layer-list>
     </item>
 
-    <!-- Normal (disconnected) state: Muted, deep volumetric 3D -->
     <item>
         <layer-list>
-            <!-- 1. Deep Outer Drop Shadow -->
             <item android:top="65dp" android:bottom="50dp" android:left="55dp" android:right="55dp">
                 <shape android:shape="oval">
                     <solid android:color="#66000000" />
                 </shape>
             </item>
 
-            <!-- 2. Outer Housing Rim (Physical base) -->
             <item android:top="52dp" android:bottom="60dp" android:left="53dp" android:right="53dp">
                 <shape android:shape="oval">
-                    <!-- Light shining from top -->
-                    <gradient android:angle="90" android:startColor="#0A0C1C" android:endColor="#3F4678" />
+                    <gradient android:angle="90" android:startColor="@color/btn_connect_rim_start" android:endColor="@color/btn_connect_rim_end" />
                 </shape>
             </item>
 
-            <!-- 3. The Main Button Body (Dark Volumetric Knob) -->
             <item android:top="58dp" android:bottom="66dp" android:left="59dp" android:right="59dp">
                 <shape android:shape="oval">
-                    <!-- Curved 3d surface using an angled gradient -->
-                    <gradient android:angle="135" android:startColor="#333866" android:centerColor="#1B1E38" android:endColor="#0B0D19" />
+                    <gradient android:angle="135" android:startColor="@color/btn_connect_body_start" android:centerColor="@color/btn_connect_body_center" android:endColor="@color/btn_connect_body_end" />
                 </shape>
             </item>
-            
-            <!-- 3b. Glass Reflection on Button -->
             <item android:top="58dp" android:bottom="66dp" android:left="59dp" android:right="59dp">
                 <shape android:shape="oval">
                     <gradient android:type="radial" android:gradientRadius="120dp" android:centerX="0.3" android:centerY="0.2" android:startColor="#44FFFFFF" android:endColor="#00FFFFFF" />
                 </shape>
             </item>
 
-            <!-- 4. Center Soft Concave Dimple (Pressed inward effect) -->
             <item android:top="84dp" android:bottom="92dp" android:left="88dp" android:right="88dp">
                 <shape android:shape="oval">
-                    <!-- Reverse lighting: shadow at top-left, light at bottom-right simulates concave -->
                     <gradient android:angle="315" android:startColor="#55000000" android:centerColor="#11000000" android:endColor="#22FFFFFF" />
                 </shape>
             </item>
 
-            <!-- 5. Dimple deepest shadow -->
             <item android:top="98dp" android:bottom="106dp" android:left="102dp" android:right="102dp">
                 <shape android:shape="oval">
                     <gradient android:angle="270" android:startColor="#44000000" android:endColor="#00000000" />

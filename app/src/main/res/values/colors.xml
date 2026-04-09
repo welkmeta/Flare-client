@@ -1,26 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Backgrounds -->
-    <color name="bg_dark">#0D0F14</color>
-    <color name="bg_surface">#161B25</color>
-    <color name="bg_item">#F0F2F5</color>
-    <color name="bg_nav_bar">#80F5F7FA</color>
-    <color name="bg_notification_bar">#F5F7FA</color>
+    <color name="bg_dark">#E2E5EC</color>
+    <color name="bg_surface">#F0F2F5</color>
+    <color name="bg_item">#EAECEF</color>
+    <color name="bg_nav_bar">#CCE2E5EC</color>
+    <color name="bg_notification_bar">#F0F2F5</color>
 
-    <!-- Accent -->
     <color name="accent">#5B8CFF</color>
     <color name="accent_end">#A066FF</color>
 
-    <!-- Text -->
     <color name="text_primary">#1A1C1E</color>
     <color name="text_secondary">#707991</color>
-    <color name="white">#FFFFFF</color>
-    <color name="white_10">#1AFFFFFF</color>
-    
-    <color name="divider_color">#0D000000</color>
-    <color name="menu_text_color">#1A1C1E</color>
+    <color name="white">#F7F8FA</color>
+    <color name="white_10">#1AF7F8FA</color>
+    <color name="glass_stroke">#80000000</color>
 
-    <!-- Status -->
+    <color name="divider_color">#18000000</color>
+    <color name="menu_text_color">#1A1C1E</color>
+    <color name="nav_icon_tint">#4A5568</color>
+
     <color name="connected_green">#30D158</color>
     <color name="disconnected_red">#FF453A</color>
+
+    <color name="btn_connect_rim_start">#D1D5DB</color>
+    <color name="btn_connect_rim_end">#F3F4F6</color>
+    <color name="btn_connect_body_start">#F9FAFB</color>
+    <color name="btn_connect_body_center">#E5E7EB</color>
+    <color name="btn_connect_body_end">#D1D5DB</color>
+    <color name="btn_connect_icon_tint">#707991</color>
+    <color name="gradient_base">#E8EBF0</color>
+    <color name="gradient_blue_start">#605B8CFF</color>
+    <color name="gradient_blue_end">#005B8CFF</color>
+    <color name="gradient_purple_start">#60A066FF</color>
+    <color name="gradient_purple_end">#00A066FF</color>
+    <color name="gradient_magenta_start">#50FF4081</color>
+    <color name="gradient_magenta_end">#00FF4081</color>
+    <color name="gradient_cyan_start">#5000E5FF</color>
+    <color name="gradient_cyan_end">#0000E5FF</color>
+    <color name="gradient_white_start">#CCFFFFFF</color>
+    <color name="gradient_white_end">#00FFFFFF</color>
 </resources>

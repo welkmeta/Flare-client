@@ -23,7 +23,6 @@
     <string name="settings_item_ping">Пинг</string>
     <string name="settings_item_subscriptions">Подписки</string>
 
-    <!-- Advanced Settings -->
     <string name="settings_advanced_title">Расширенные настройки</string>
     <string name="settings_label_fragmentation">Фрагментация</string>
     <string name="settings_label_packet_type">Тип пакетов</string>
@@ -34,13 +33,12 @@
     <string name="settings_label_noise_packet">Пакет</string>
     <string name="settings_label_noise_delay">Задержка</string>
     <string name="settings_label_noise_apply">Применить к ip</string>
-    <!-- Mux Settings -->
+
     <string name="settings_label_mux">Mux</string>
     <string name="settings_label_mux_protocol">Способ</string>
     <string name="settings_label_mux_streams">Кол-во потоков</string>
     <string name="settings_label_mux_padding">Добавить шум</string>
 
-    <!-- Remote DNS -->
     <string name="settings_label_remote_dns">Remote DNS</string>
     <string name="settings_label_dns_url">URL</string>
     <string name="settings_hint_dns_url">Auto</string>
@@ -51,12 +49,9 @@
     <string name="settings_label_mtu">MTU</string>
     <string name="settings_restart_tunnel_hint">Настройки будут применены при следующем создании туннеля.</string>
     <string name="vpn_error_tunnel_creation">Не удалось создать туннель</string>
-    
     <string name="settings_stack_header">Сетевой стек</string>
     <string name="settings_label_stack_title">Использовать</string>
     <string name="settings_label_stack">%s</string>
-    
-    <!-- Ping Settings -->
     <string name="settings_ping_title">Настройки пинга</string>
     <string name="settings_label_ping_type">Тип пинга</string>
     <string name="settings_ping_type_get">via proxy GET</string>
@@ -71,7 +66,6 @@
     <string name="settings_ping_style_time">Время</string>
     <string name="settings_ping_style_icon">Значок</string>
     <string name="settings_ping_style_both">Время и значок</string>
-    <!-- Basic Settings -->
     <string name="settings_basic_title">Базовые настройки</string>
     <string name="settings_label_split_tunneling">Раздельное туннелирование</string>
     <string name="settings_header_autostart">Автозапуск</string>
@@ -86,8 +80,6 @@
     <string name="json_edit_success">JSON %s был успешно изменен.</string>
     <string name="label_profile_name">Название профиля</string>
     <string name="label_json_data">Данные JSON</string>
-    
-    <!-- Subscriptions Settings -->
     <string name="settings_subscriptions_title">Подписки</string>
     <string name="settings_label_auto_update">Автообновление</string>
     <string name="settings_label_update_every">Обновлять подписки каждые</string>
@@ -95,10 +87,11 @@
     <string name="sub_update_success">%d Подписок было успешно обновлено.</string>
     <string name="sub_update_success_single">Подписка %s была успешно обновлена.</string>
     <string name="sub_update_error">Не удалось обновить все подписки!</string>
+    <string name="sub_update_error_single">Не удалось обновить подписку!</string>
     <string name="sub_deleted_success">Подписка %s была удалена!</string>
     <string name="menu_update_subscription">Обновить</string>
+    <string name="menu_delete_subscription">Удалить</string>
 
-    <!-- Theme and Font Settings -->
     <string name="settings_theme_title">Тема и шрифт</string>
     <string name="settings_theme_header">Тема</string>
     <string name="settings_label_theme">Стиль</string>
@@ -107,15 +100,82 @@
     <string name="settings_font_geologica">Geologica</string>
 
     <string name="settings_bg_effects_header">Фоновые эффекты</string>
-    <string name="settings_label_enable_gradient">Включить градиент</string>
+    <string name="settings_label_enable_gradient">Градиент</string>
+    <string name="settings_label_gradient_animation">Анимация градиента</string>
+    <string name="settings_label_gradient_speed">Скорость анимации</string>
     <string name="theme_auto">Авто</string>
     <string name="theme_day">День</string>
     <string name="theme_night">Ночь</string>
-    
-    <!-- Notifications Settings -->
     <string name="settings_header_notifications">Уведомления</string>
     <string name="settings_label_status_notification">Уведомление с статусом</string>
     <string name="settings_label_status">Статус</string>
     <string name="hint_add_first_profile">Добавьте свой первый профиль или подписку с помощью кнопки ниже!</string>
     <string name="sub_single_profiles">Одиночные профили</string>
+    <string name="servers_title_flare">Сервера Flare</string>
+    <string name="servers_desc_flare">Flare Servers: анонимные, не хранят логи, работают быстро и доступны 24/7.</string>
+    <string name="servers_title_create">Создать свой сервер</string>
+    <string name="servers_desc_create">Ваш собственный сервер, который контролируете только вы.</string>
+    <string name="servers_ssh_profile_name">Имя профиля</string>
+    <string name="servers_ssh_profile_name_hint">Мой сервер</string>
+    <string name="servers_ssh_ip">IP-адрес</string>
+    <string name="servers_ssh_port">Порт SSH</string>
+    <string name="servers_ssh_port_hint">22</string>
+    <string name="servers_ssh_username">Имя пользователя SSH</string>
+    <string name="servers_ssh_password">Пароль или ключ SSH</string>
+    <string name="servers_protocol_title">Выберите протокол</string>
+    <string name="servers_protocol_xray_title">Xray с REALITY</string>
+    <string name="servers_protocol_xray_desc">Xray с REALITY маскирует VPN-Трафик под веб-трафик. Высокая устойчивость к обнаружению, обеспечивает высокую приватность и скорость</string>
+    <string name="servers_xray_setup_title">Настройка Xray</string>
+    <string name="servers_xray_port_label">Порт Xray</string>
+    <string name="servers_xray_port_desc">Порт, на котором будет работать ваш VPN сервеp. 443 — стандартный порт для маскировки под HTTPS.</string>
+    <string name="servers_xray_sni_label">SNI (Server Name Indication)</string>
+    <string name="servers_xray_sni_desc">Домен, под который будет маскироваться ваш трафик. Google.com — надежный вариант по умолчанию.</string>
+    <string name="servers_setup_title">Настройка сервера...</string>
+    <string name="servers_setup_success">Сервер был успешно создан!</string>
+    <string name="servers_setup_success_desc">Вы можете найти его внутри подписки "Мои сервера"</string>
+    <string name="btn_next">Далее</string>
+    <string name="btn_finish">Завершить</string>
+    <string name="sub_my_servers">Мои сервера</string>
+
+    <string name="settings_header_best_profile">Управление профилями</string>
+    <string name="settings_label_best_profile">Выбирать лучший профиль</string>
+    <string name="settings_label_best_profile_interval">Обновлять выбор каждые</string>
+    <string name="settings_hint_best_profile_interval">1800</string>
+    <string name="settings_desc_best_profile">Данная функция выбирает лучший сервер в подписке с самым маленьким пингом</string>
+
+    <string name="notif_best_profile_title">Обновление профиля</string>
+    <string name="notif_best_profile_body">Выбор профиля был обновлен на %1$s с пингом %2$dms</string>
+
+    <string name="settings_label_best_profile_only_connected">Только если туннель запущен</string>
+    <string name="settings_label_best_profile_notif">Выбор лучшего профиля</string>
+    <string name="option_yes">Да</string>
+    <string name="option_no">Нет</string>
+
+    <string name="onboarding_welcome_title">Добро пожаловать в Flare Client!</string>
+    <string name="onboarding_welcome_question">Хотите пройти первоначальную настройку?</string>
+    <string name="onboarding_permissions_title">Разрешения</string>
+    <string name="onboarding_notifications_title">Уведомления</string>
+    <string name="onboarding_notifications_desc">Уведомления нужны чтобы приложение работало в фоне 24/7 а так же что-бы видеть актуальный статус туннеля</string>
+    <string name="onboarding_battery_title">Энергопотребление</string>
+    <string name="onboarding_battery_desc">Что-бы приложение работало стабильно и Android его не закрывал нужно отключить экономию энергии для Flare Client</string>
+    <string name="onboarding_fragmentation_title">Фрагментация</string>
+    <string name="onboarding_fragmentation_question">Хотели бы включить фрагментацию?</string>
+    <string name="onboarding_fragmentation_desc">Фрагментация помогает разделить пакет на несколько частей что помогает для обхода блокировок (DPI)</string>
+    <string name="onboarding_mux_title">Мультиплексирование</string>
+    <string name="onboarding_mux_question">Хотели бы использовать Mux?</string>
+    <string name="onboarding_mux_desc">Mux помогает ускорить соединение, но плохо подходит для обхода блокировок</string>
+    <string name="onboarding_success_title">Настройка успешно пройдена!</string>
+    <string name="onboarding_btn_go_main">На главную</string>
+
+    <string name="split_tunnel_desc">Позволяет выбирать, какие приложения работают через VPN.</string>
+    <string name="fragment_desc">Разделение больших пакетов данных на более мелкие части. Помогает в обходе блокировок (DPI)</string>
+    <string name="mux_desc">Объединяет несколько запросов в одно соединение. Снижает задержку на создание новых подключений и ускоряет загрузку.</string>
+    <string name="fakeip_desc">Мгновенно выдает системе «поддельный» адрес для домена, не дожидаясь ответа от DNS-сервера. Предотвращает утечку DNS</string>
+    <string name="mtu_desc">Максимальный размер одного пакета данных (в байтах), который может быть передан за один раз.</string>
+    <string name="icmp_desc">Проверяет доступен ли сервер, используется для базовой проверки связи с сервером.</string>
+    <string name="tcp_desc">Проверяет скорость открытия порта на сервере и готов ли он принимать соединения.</string>
+    <string name="viaproxy_desc">Проверяет время полного прохождения HTTP запроса через прокси, проверяет реальную задержку, самый точный метод.</string>
+    <string name="mixedstack_desc">Средняя совместимость, поддерживает большую часть настроек туннеля, высокое энергопотребление.</string>
+    <string name="gvisorstack_desc">Высокая совместимость, поддерживает все настройки туннеля, среднее энергопотребление.</string>
+    <string name="systemstack_desc">Низкая совместимость, не поддерживает фрагментацию и еще некоторые настройки туннеля, низкое энергопотребление.</string>
 </resources>

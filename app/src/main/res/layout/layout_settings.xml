@@ -14,7 +14,6 @@
         android:orientation="vertical"
         android:padding="20dp">
 
-        <!-- Title -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -24,8 +23,6 @@
             android:fontFamily="@font/geologica_medium"
             android:layout_marginBottom="24dp" />
 
-        <!-- Grouped Block -->
-        <!-- VPN Settings Section -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -42,7 +39,6 @@
             android:orientation="vertical"
             android:layout_marginBottom="24dp">
 
-            <!-- Base -->
             <LinearLayout
                 android:id="@+id/btn_settings_base"
                 android:layout_width="match_parent"
@@ -83,7 +79,6 @@
                 android:layout_marginStart="56dp"
                 android:background="@color/divider_color" />
 
-            <!-- Advanced -->
             <LinearLayout
                 android:id="@+id/btn_settings_advanced"
                 android:layout_width="match_parent"
@@ -119,7 +114,6 @@
             </LinearLayout>
         </LinearLayout>
 
-        <!-- Application Settings Section -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -136,7 +130,6 @@
             android:orientation="vertical"
             android:layout_marginBottom="24dp">
 
-            <!-- Ping -->
             <LinearLayout
                 android:id="@+id/btn_settings_ping"
                 android:layout_width="match_parent"
@@ -177,7 +170,6 @@
                 android:layout_marginStart="56dp"
                 android:background="@color/divider_color" />
 
-            <!-- Subscriptions -->
             <LinearLayout
                 android:id="@+id/btn_settings_subscriptions"
                 android:layout_width="match_parent"
@@ -213,7 +205,6 @@
             </LinearLayout>
         </LinearLayout>
 
-        <!-- Appearance Section -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -229,7 +220,6 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <!-- Theme -->
             <LinearLayout
                 android:id="@+id/btn_settings_theme"
                 android:layout_width="match_parent"
@@ -270,7 +260,6 @@
                 android:layout_marginStart="56dp"
                 android:background="@color/divider_color" />
 
-            <!-- Language -->
             <LinearLayout
                 android:id="@+id/btn_settings_language"
                 android:layout_width="match_parent"

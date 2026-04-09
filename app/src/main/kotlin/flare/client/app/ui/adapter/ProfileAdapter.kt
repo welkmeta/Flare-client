@@ -48,6 +48,32 @@ class ProfileAdapter(
                 }
             }
             override fun areContentsTheSame(old: DisplayItem, new: DisplayItem) = old == new
+
+            override fun getChangePayload(oldItem: DisplayItem, newItem: DisplayItem): Any? {
+                if (oldItem is DisplayItem.ProfileItem && newItem is DisplayItem.ProfileItem) {
+                    val oldBase = oldItem.copy(pingState = PingState.None, isSelected = false, cornerType = DisplayItem.CornerType.NONE)
+                    val newBase = newItem.copy(pingState = PingState.None, isSelected = false, cornerType = DisplayItem.CornerType.NONE)
+                    if (oldBase == newBase) {
+                        val payloads = mutableSetOf<String>()
+                        if (oldItem.pingState != newItem.pingState) payloads.add("PING")
+                        if (oldItem.isSelected != newItem.isSelected) payloads.add("SELECTION")
+                        if (oldItem.cornerType != newItem.cornerType) payloads.add("CORNERS")
+                        return if (payloads.isNotEmpty()) payloads else null
+                    }
+                } else if (oldItem is DisplayItem.SubscriptionItem && newItem is DisplayItem.SubscriptionItem) {
+                    val oldBase = oldItem.copy(isExpanded = false, isRefreshing = false, cornerType = DisplayItem.CornerType.NONE, entity = oldItem.entity.copy(upload = 0, download = 0, total = 0))
+                    val newBase = newItem.copy(isExpanded = false, isRefreshing = false, cornerType = DisplayItem.CornerType.NONE, entity = newItem.entity.copy(upload = 0, download = 0, total = 0))
+                    if (oldBase == newBase) {
+                        val payloads = mutableSetOf<String>()
+                        if (oldItem.isExpanded != newItem.isExpanded) payloads.add("EXPAND")
+                        if (oldItem.isRefreshing != newItem.isRefreshing) payloads.add("REFRESH")
+                        if (oldItem.entity.upload != newItem.entity.upload || oldItem.entity.download != newItem.entity.download || oldItem.entity.total != newItem.entity.total) payloads.add("TRAFFIC")
+                        if (oldItem.cornerType != newItem.cornerType) payloads.add("CORNERS")
+                        return if (payloads.isNotEmpty()) payloads else null
+                    }
+                }
+                return "FULL_BIND"
+            }
         }
     }
 
@@ -72,7 +98,7 @@ class ProfileAdapter(
         when (val item = getItem(position)) {
             is DisplayItem.SubscriptionItem ->
                 (holder as SubscriptionVH).bind(
-                    item, 
+                    item,
                     onSubscriptionToggle,
                     onSubscriptionDelete,
                     onSubscriptionSpeedTest,
@@ -83,13 +109,42 @@ class ProfileAdapter(
         }
     }
 
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int, payloads: MutableList<Any>) {
+        if (payloads.isEmpty() || payloads.contains("FULL_BIND")) {
+            super.onBindViewHolder(holder, position, payloads)
+        } else {
+            val item = getItem(position)
+            val combinedPayloads = mutableSetOf<String>()
+            for (p in payloads) {
+                if (p is Set<*>) {
+                    combinedPayloads.addAll(p as Set<String>)
+                }
+            }
+
+            when (item) {
+                is DisplayItem.SubscriptionItem -> {
+                    val vh = holder as SubscriptionVH
+                    if (combinedPayloads.contains("EXPAND")) vh.updateExpand(item)
+                    if (combinedPayloads.contains("REFRESH")) vh.updateRefresh(item)
+                    if (combinedPayloads.contains("TRAFFIC")) vh.updateTraffic(item)
+                    if (combinedPayloads.contains("CORNERS")) vh.updateCorners(item)
+                }
+                is DisplayItem.ProfileItem -> {
+                    val vh = holder as ProfileVH
+                    if (combinedPayloads.contains("PING")) vh.updatePing(item)
+                    if (combinedPayloads.contains("SELECTION")) vh.updateSelection(item)
+                    if (combinedPayloads.contains("CORNERS")) vh.updateCorners(item)
+                }
+            }
+        }
+    }
 
     inner class SubscriptionVH(
         private val binding: ItemSubscriptionBinding
     ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(
-            item: DisplayItem.SubscriptionItem, 
+            item: DisplayItem.SubscriptionItem,
             toggle: (SubscriptionEntity) -> Unit,
             delete: (Long) -> Unit,
             speedTest: (Long) -> Unit,
@@ -100,71 +155,109 @@ class ProfileAdapter(
             binding.root.layoutParams = layoutParams
 
             binding.tvSubName.text = item.entity.name
-            
-            binding.llTrafficContainer.visibility = View.VISIBLE
-            val used = item.entity.upload + item.entity.download
-            
-            binding.pbTraffic.progress = if (item.entity.total > 0) ((used.toDouble() / item.entity.total) * 10000).toInt() else 0
-            
-            val formatBytes = { bytes: Long ->
-                val mb = bytes.toDouble() / (1024 * 1024)
-                val gb = bytes.toDouble() / (1024 * 1024 * 1024)
-                if (gb >= 1.0) {
-                    java.lang.String.format(java.util.Locale.US, "%.2f GB", gb)
-                } else if (mb >= 1.0) {
-                    java.lang.String.format(java.util.Locale.US, "%.2f MB", mb)
-                } else {
-                    "$bytes B"
+            updateTraffic(item)
+            updateExpand(item)
+            updateRefresh(item)
+            updateCorners(item)
+
+            binding.root.setOnClickListener { toggle(item.entity) }
+            binding.ivSync.setOnClickListener { onSubscriptionUpdate(item.entity) }
+            binding.ivSpeedTest.setOnClickListener { speedTest(item.entity.id) }
+
+            val isVirtual = item.entity.id == -1L
+            binding.ivMoreOptions.visibility = if (isVirtual) View.GONE else View.VISIBLE
+            if (!isVirtual) {
+                binding.ivMoreOptions.setOnClickListener { view ->
+                    val editLabel = view.context.getString(R.string.menu_edit_subscription)
+                    val deleteLabel = view.context.getString(R.string.menu_delete_subscription)
+                    val items = listOf(
+                        flare.client.app.util.GlassUtils.MenuItem(1, editLabel) {
+                            onEditSubscriptionJson(item.entity)
+                        },
+                        flare.client.app.util.GlassUtils.MenuItem(2, deleteLabel) {
+                            onSubscriptionDelete(item.entity.id)
+                        }
+                    )
+                    flare.client.app.util.GlassUtils.showGlassMenu(view, items)
                 }
             }
-            
-            val totalStr = if (item.entity.total > 0) formatBytes(item.entity.total) else "∞"
-            binding.tvTrafficInfo.text = "${formatBytes(used)} / $totalStr"
+        }
 
+        fun updateTraffic(item: DisplayItem.SubscriptionItem) {
+            val used = item.entity.upload + item.entity.download
+            val isInfinite = item.entity.id == -1L || item.entity.total == Long.MAX_VALUE
+
+            if (isInfinite || item.entity.total > 0 || used > 0) {
+                binding.llTrafficContainer.visibility = View.VISIBLE
+                if (isInfinite) {
+                    binding.pbTraffic.progress = 0
+                    binding.tvTrafficInfo.text = "∞ / ∞"
+                } else {
+                    binding.pbTraffic.progress = if (item.entity.total > 0) ((used.toDouble() / item.entity.total) * 10000).toInt() else 0
+                    val formatBytes = { bytes: Long ->
+                        val mb = bytes.toDouble() / (1024 * 1024)
+                        val gb = bytes.toDouble() / (1024 * 1024 * 1024)
+                        if (gb >= 1.0) {
+                            java.lang.String.format(java.util.Locale.US, "%.2f GB", gb)
+                        } else if (mb >= 1.0) {
+                            java.lang.String.format(java.util.Locale.US, "%.2f MB", mb)
+                        } else {
+                            "$bytes B"
+                        }
+                    }
+                    val totalStr = if (item.entity.total > 0) formatBytes(item.entity.total) else "∞"
+                    binding.tvTrafficInfo.text = "${formatBytes(used)} / $totalStr"
+                }
+            } else {
+                binding.llTrafficContainer.visibility = View.GONE
+            }
+
+            if (item.entity.expire > 0) {
+                binding.tvExpireDate.visibility = View.VISIBLE
+                val expireMillis = if (item.entity.expire > 1000000000000L) item.entity.expire else item.entity.expire * 1000L
+                val date = java.text.SimpleDateFormat("dd.MM.yyyy", java.util.Locale.getDefault()).format(java.util.Date(expireMillis))
+                binding.tvExpireDate.text = "Истекает: $date"
+            } else {
+                binding.tvExpireDate.visibility = View.GONE
+            }
+
+            if (item.entity.description.isNotBlank()) {
+                binding.tvDescription.visibility = View.VISIBLE
+                binding.tvDescription.text = item.entity.description
+            } else {
+                binding.tvDescription.visibility = View.GONE
+            }
+        }
+
+        fun updateExpand(item: DisplayItem.SubscriptionItem) {
             val rotation = if (item.isExpanded) 90f else 0f
             binding.ivArrow.animate().rotation(rotation).setDuration(200).start()
-            
+        }
+
+        fun updateRefresh(item: DisplayItem.SubscriptionItem) {
+            if (item.isRefreshing) {
+                val rotate = android.view.animation.RotateAnimation(
+                    360f, 0f,
+                    android.view.animation.Animation.RELATIVE_TO_SELF, 0.5f,
+                    android.view.animation.Animation.RELATIVE_TO_SELF, 0.5f
+                )
+                rotate.duration = 1000
+                rotate.repeatCount = android.view.animation.Animation.INFINITE
+                rotate.interpolator = android.view.animation.LinearInterpolator()
+                binding.ivSync.startAnimation(rotate)
+                binding.ivSync.isEnabled = false
+            } else {
+                binding.ivSync.clearAnimation()
+                binding.ivSync.isEnabled = true
+            }
+        }
+
+        fun updateCorners(item: DisplayItem.SubscriptionItem) {
             applyCorners(binding.root, item.cornerType)
             binding.viewSeparator.visibility = if (item.cornerType == DisplayItem.CornerType.BOTTOM || item.cornerType == DisplayItem.CornerType.ALL) {
                 View.GONE
             } else {
                 View.VISIBLE
-            }
-
-            binding.root.setOnClickListener { toggle(item.entity) }
-            binding.ivDelete.setOnClickListener { delete(item.entity.id) }
-            binding.ivSpeedTest.setOnClickListener { speedTest(item.entity.id) }
-
-            val isVirtual = item.entity.id == -1L
-            binding.ivMoreOptions.visibility = if (isVirtual) View.GONE else View.VISIBLE
-            
-            if (!isVirtual) {
-                binding.ivMoreOptions.setOnClickListener { view ->
-                val popup = PopupMenu(view.context, view, Gravity.END)
-                val textColor = ContextCompat.getColor(view.context, R.color.menu_text_color)
-
-                val updateLabel = view.context.getString(R.string.menu_update_subscription)
-                val updateSpannable = SpannableString(updateLabel)
-                updateSpannable.setSpan(ForegroundColorSpan(textColor), 0, updateSpannable.length, 0)
-                popup.menu.add(0, 1, 1, updateSpannable).setOnMenuItemClickListener {
-                    onSubscriptionUpdate(item.entity)
-                    true
-                }
-
-                val editLabel = view.context.getString(R.string.menu_edit_subscription)
-                val editSpannable = SpannableString(editLabel)
-                editSpannable.setSpan(ForegroundColorSpan(textColor), 0, editSpannable.length, 0)
-                popup.menu.add(1, 2, 2, editSpannable).setOnMenuItemClickListener {
-                    onEditSubscriptionJson(item.entity)
-                    true
-                }
-
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                    popup.menu.setGroupDividerEnabled(true)
-                }
-                
-                popup.show()
-                }
             }
         }
     }
@@ -174,28 +267,45 @@ class ProfileAdapter(
     ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(
-            item: DisplayItem.ProfileItem, 
+            item: DisplayItem.ProfileItem,
             click: (ProfileEntity) -> Unit,
             editJson: (ProfileEntity) -> Unit
         ) {
-            val layoutParams = binding.root.layoutParams as ViewGroup.MarginLayoutParams
-            layoutParams.topMargin = if (item.cornerType == DisplayItem.CornerType.ALL && bindingAdapterPosition != 0) {
-                (12 * binding.root.resources.displayMetrics.density).toInt()
-            } else {
-                0
-            }
-            binding.root.layoutParams = layoutParams
-
             binding.tvProfileName.text = item.entity.name
-            
             val displayInfo = getProtocolDisplay(item.entity)
             binding.tvServerDescription.text = displayInfo
             binding.tvServerDescription.visibility = View.VISIBLE
 
+            updateSelection(item)
+            updatePing(item)
+            updateCorners(item)
+
+            binding.root.setOnClickListener { click(item.entity) }
+            binding.ivEditJson.setOnClickListener { editJson(item.entity) }
+        }
+
+        fun updateSelection(item: DisplayItem.ProfileItem) {
             val selectionAlpha = if (item.isSelected) 1f else 0f
             binding.viewSelectedBg.alpha = selectionAlpha
             binding.ivSelectedCheck.alpha = selectionAlpha
-            
+
+            if (item.isSelected) {
+                binding.tvProfileName.setTextColor(Color.WHITE)
+                binding.tvServerDescription.setTextColor(Color.parseColor("#B0BDD1"))
+                binding.ivEditJson.imageTintList = android.content.res.ColorStateList.valueOf(Color.parseColor("#B0BDD1"))
+                binding.viewArrowDivider.background = android.graphics.drawable.ColorDrawable(Color.WHITE)
+                binding.viewArrowDivider.alpha = 0.3f
+            } else {
+                binding.tvProfileName.setTextColor(ContextCompat.getColor(binding.root.context, R.color.text_primary))
+                binding.tvServerDescription.setTextColor(ContextCompat.getColor(binding.root.context, R.color.text_secondary))
+                binding.ivEditJson.imageTintList = android.content.res.ColorStateList.valueOf(ContextCompat.getColor(binding.root.context, R.color.text_secondary))
+                binding.viewArrowDivider.background = android.graphics.drawable.ColorDrawable(Color.WHITE)
+                binding.viewArrowDivider.alpha = 0.3f
+            }
+            binding.layoutContent.alpha = if (item.isSelected) 1.0f else 0.7f
+        }
+
+        fun updatePing(item: DisplayItem.ProfileItem) {
             val pingStyle = flare.client.app.data.SettingsManager(binding.root.context).pingStyle
             when (val state = item.pingState) {
                 is PingState.None -> {
@@ -210,19 +320,16 @@ class ProfileAdapter(
                 is PingState.Result -> {
                     binding.layoutPingContainer.visibility = View.VISIBLE
                     binding.pbPingLoading.visibility = View.GONE
-                    
                     val showIcon = pingStyle == "Значок" || pingStyle == "Время и значок"
                     val showText = pingStyle == "Время" || pingStyle == "Время и значок"
-                    
                     if (state.isError || state.latency > 5000) {
                         if (showIcon) {
                             binding.ivPingIcon.visibility = View.VISIBLE
                             binding.ivPingIcon.setImageResource(R.drawable.ic_error)
                         } else binding.ivPingIcon.visibility = View.GONE
-                        
                         if (showText) {
                             binding.tvPingText.visibility = View.VISIBLE
-                            binding.tvPingText.text = if (state.isError) "Error" else "${state.latency} ms"
+                            binding.tvPingText.text = if (state.isError) (state.errorMessage ?: "Error") else "${state.latency} ms"
                             binding.tvPingText.setTextColor(android.graphics.Color.RED)
                         } else binding.tvPingText.visibility = View.GONE
                     } else {
@@ -236,12 +343,10 @@ class ProfileAdapter(
                             state.latency <= 800 -> android.graphics.Color.parseColor("#FFC107")
                             else -> android.graphics.Color.RED
                         }
-                        
                         if (showIcon) {
                             binding.ivPingIcon.visibility = View.VISIBLE
                             binding.ivPingIcon.setImageResource(iconRes)
                         } else binding.ivPingIcon.visibility = View.GONE
-                        
                         if (showText) {
                             binding.tvPingText.visibility = View.VISIBLE
                             binding.tvPingText.text = "${state.latency} ms"
@@ -250,20 +355,24 @@ class ProfileAdapter(
                     }
                 }
             }
-            
+        }
+
+        fun updateCorners(item: DisplayItem.ProfileItem) {
+            val layoutParams = binding.root.layoutParams as ViewGroup.MarginLayoutParams
+            layoutParams.topMargin = if (item.cornerType == DisplayItem.CornerType.ALL && bindingAdapterPosition != 0) {
+                (12 * binding.root.resources.displayMetrics.density).toInt()
+            } else {
+                0
+            }
+            binding.root.layoutParams = layoutParams
+
             applyCorners(binding.layoutContent, item.cornerType)
             applyCorners(binding.viewSelectedBg, item.cornerType)
-            
             binding.viewSeparator.visibility = if (item.cornerType == DisplayItem.CornerType.BOTTOM || item.cornerType == DisplayItem.CornerType.ALL) {
                 View.GONE
             } else {
                 View.VISIBLE
             }
-            
-            binding.layoutContent.alpha = if (item.isSelected) 1.0f else 0.7f
-            
-            binding.root.setOnClickListener { click(item.entity) }
-            binding.ivEditJson.setOnClickListener { editJson(item.entity) }
         }
 
         private fun getProtocolDisplay(entity: ProfileEntity): String {
@@ -294,7 +403,6 @@ class ProfileAdapter(
     private fun applyCorners(view: View, cornerType: DisplayItem.CornerType) {
         val radius = 12f * view.context.resources.displayMetrics.density
         val background = view.background as? GradientDrawable ?: return
-        
         val radii = when (cornerType) {
             DisplayItem.CornerType.ALL -> floatArrayOf(radius, radius, radius, radius, radius, radius, radius, radius)
             DisplayItem.CornerType.TOP -> floatArrayOf(radius, radius, radius, radius, 0f, 0f, 0f, 0f)

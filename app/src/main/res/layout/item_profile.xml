@@ -5,7 +5,6 @@
     android:layout_width="match_parent"
     android:layout_height="60dp">
 
-    <!-- Content container to handle alpha independently of RecyclerView animator -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/layout_content"
         android:layout_width="match_parent"
@@ -13,7 +12,6 @@
         android:paddingEnd="4dp"
         android:background="@drawable/bg_list_item">
 
-        <!-- Background for selection highlight -->
         <View
             android:id="@+id/view_selected_bg"
             android:layout_width="0dp"
@@ -25,18 +23,16 @@
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent" />
 
-        <!-- Selection strip on the left -->
         <View
             android:id="@+id/view_selection_strip"
             android:layout_width="3dp"
             android:layout_height="0dp"
-            android:background="#FFFFFF"
+            android:background="@color/bg_surface"
             android:alpha="0"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent" />
 
-        <!-- JSON Edit button (Arrow Right) -->
         <ImageView
             android:id="@+id/iv_edit_json"
             android:layout_width="32dp"
@@ -49,19 +45,17 @@
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent" />
 
-        <!-- Vertical separator before the arrow -->
         <View
             android:id="@+id/view_arrow_divider"
             android:layout_width="1dp"
             android:layout_height="24dp"
-            android:background="#FFFFFF"
+            android:background="@color/bg_surface"
             android:alpha="0.3"
             app:layout_constraintEnd_toStartOf="@id/iv_edit_json"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent"
             android:layout_marginEnd="4dp"/>
 
-        <!-- Ping Result Container -->
         <LinearLayout
             android:id="@+id/layout_ping_container"
             android:layout_width="wrap_content"
@@ -98,7 +92,6 @@
                 android:visibility="gone" />
         </LinearLayout>
 
-        <!-- Selection checkmark -->
         <ImageView
             android:id="@+id/iv_selected_check"
             android:layout_width="20dp"

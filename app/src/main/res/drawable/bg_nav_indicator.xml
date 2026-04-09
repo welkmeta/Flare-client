@@ -1,10 +1,8 @@
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Ultra-soft Frosted Pill (Liquid Selection) -->
     <item>
         <shape>
-            <solid android:color="#1AFFFFFF" /> <!-- Subtle 10% white for frosted feel -->
+            <solid android:color="#1AFFFFFF" />
             <corners android:radius="32dp" />
-            <!-- No stroke for a more liquid look -->
         </shape>
     </item>
 </layer-list>

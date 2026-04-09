@@ -11,14 +11,12 @@
     android:clipToPadding="false"
     android:background="@color/bg_dark">
 
-
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:padding="20dp">
 
-        <!-- Toolbar Back -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -45,7 +43,6 @@
                 android:layout_marginStart="8dp" />
         </LinearLayout>
 
-        <!-- Theme Section -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -70,8 +67,8 @@
                 android:gravity="center_vertical"
                 android:background="@drawable/bg_grouped_all"
                 android:paddingHorizontal="16dp"
-                android:clickable="false"
-                android:focusable="false">
+                android:clickable="true"
+                android:focusable="true">
 
                 <TextView
                     android:layout_width="0dp"
@@ -87,13 +84,21 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/theme_night"
-                    android:textColor="@color/text_secondary"
+                    android:textColor="@color/accent"
                     android:textSize="16sp"
                     android:fontFamily="@font/geologica_medium" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="›"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="20sp"
+                    android:layout_marginStart="6dp" />
+
             </LinearLayout>
         </LinearLayout>
 
-        <!-- Background Effects Section -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -116,7 +121,7 @@
                 android:layout_height="64dp"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
-                android:background="@drawable/bg_grouped_all"
+                android:background="@drawable/bg_grouped_top"
                 android:paddingHorizontal="16dp"
                 android:clickable="true"
                 android:focusable="true">
@@ -140,9 +145,82 @@
                     app:trackTint="@color/accent" />
 
             </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginStart="16dp"
+                android:background="@color/divider_color" />
+
+            <LinearLayout
+                android:id="@+id/btn_toggle_bg_gradient_animation"
+                android:layout_width="match_parent"
+                android:layout_height="64dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/bg_grouped_middle"
+                android:paddingHorizontal="16dp"
+                android:clickable="true"
+                android:focusable="true">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/settings_label_gradient_animation"
+                    android:textColor="@color/text_primary"
+                    android:textSize="16sp"
+                    android:fontFamily="@font/geologica_regular" />
+
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/sw_bg_gradient_animation"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:clickable="false"
+                    android:focusable="false"
+                    app:thumbTint="@color/white"
+                    app:trackTint="@color/accent" />
+
+            </LinearLayout>
+
+            <View
+                android:id="@+id/divider_gradient_speed"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginStart="16dp"
+                android:background="@color/divider_color" />
+
+            <LinearLayout
+                android:id="@+id/layout_gradient_speed_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/bg_grouped_bottom"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/settings_label_gradient_speed"
+                    android:textColor="@color/text_primary"
+                    android:textSize="16sp"
+                    android:fontFamily="@font/geologica_regular"
+                    android:layout_marginBottom="8dp" />
+
+                <com.google.android.material.slider.Slider
+                    android:id="@+id/slider_gradient_speed"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:valueFrom="0.1"
+                    android:valueTo="3.0"
+                    android:stepSize="0.1"
+                    app:thumbColor="@color/accent"
+                    app:trackColorActive="@color/accent"
+                    app:trackColorInactive="@color/divider_color" />
+
+            </LinearLayout>
         </LinearLayout>
 
-        <!-- Font Section -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

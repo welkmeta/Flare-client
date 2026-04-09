@@ -11,5 +11,8 @@ data class SubscriptionEntity(
     val upload: Long = 0,
     val download: Long = 0,
     val total: Long = 0,
-    val expire: Long = 0
+    val expire: Long = 0,
+    val description: String = "",
+    val supportUrl: String = "",
+    val webPageUrl: String = ""
 )

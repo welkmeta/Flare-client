@@ -64,11 +64,22 @@ object ClipboardParser {
                 .build()
             val response = httpClient.newCall(request).execute()
             val body = response.body?.string() ?: ""
-            
             val profileTitle = response.header("profile-title")
             val contentDisposition = response.header("content-disposition")
             val name = extractSubscriptionName(url, profileTitle, contentDisposition)
             val userInfo = response.header("subscription-userinfo")
+            val descParts = mutableListOf<String>()
+
+            val announce = response.header("announce")
+            if (announce != null) descParts.add(decodeIfNeeded(announce))
+
+            val profileDesc = response.header("profile-description") ?: response.header("profile-message") ?: response.header("description")
+            if (profileDesc != null) descParts.add(decodeIfNeeded(profileDesc))
+
+            val supportUrl = response.header("support-url") ?: ""
+            val webPageUrl = response.header("profile-web-page-url") ?: ""
+
+            val description = descParts.joinToString("\n")
             var upload = 0L
             var download = 0L
             var total = 0L
@@ -89,14 +100,24 @@ object ClipboardParser {
                     }
                 }
             }
-            
             val proxyLines = decodeSubscriptionBody(body)
             val profiles = proxyLines.mapIndexedNotNull { _, line -> try { buildProfileFromUri(line.trim(), 0L) } catch (_: Exception) { null } }
-            
             response.close()
-            
             if (profiles.isEmpty()) return ParseResult.Error("Подписка пуста")
-            ParseResult.Subscription(SubscriptionEntity(name = name, url = url, upload = upload, download = download, total = total, expire = expire), profiles)
+            ParseResult.Subscription(
+                SubscriptionEntity(
+                    name = name,
+                    url = url,
+                    upload = upload,
+                    download = download,
+                    total = total,
+                    expire = expire,
+                    description = description,
+                    supportUrl = supportUrl,
+                    webPageUrl = webPageUrl
+                ),
+                profiles
+            )
         } catch (e: Exception) {
             ParseResult.Error("Ошибка подписки: ${e.message}")
         }
@@ -106,7 +127,6 @@ object ClipboardParser {
         if (!profileTitle.isNullOrBlank()) {
             return decodeIfNeeded(profileTitle)
         }
-        
         if (!contentDisposition.isNullOrBlank()) {
             val filename = contentDisposition.split(";")
                 .map { it.trim() }
@@ -115,17 +135,22 @@ object ClipboardParser {
                 ?.removeSurrounding("\"")
             if (!filename.isNullOrBlank()) return filename
         }
-        
         return try { URI(url).host ?: url } catch (_: Exception) { url }
     }
 
     private fun decodeIfNeeded(text: String): String {
-        return if (text.startsWith("base64:")) {
-            try {
-                val b64 = text.substringAfter("base64:")
-                String(Base64.decode(b64.trim(), Base64.DEFAULT)).trim()
-            } catch (_: Exception) { text }
-        } else {
+        return try {
+            val trimmed = text.trim()
+            val decodedBase64 = if (trimmed.startsWith("base64:")) {
+                try {
+                    val b64 = trimmed.substringAfter("base64:")
+                    String(Base64.decode(b64.trim(), Base64.DEFAULT)).trim()
+                } catch (_: Exception) { trimmed }
+            } else {
+                trimmed
+            }
+            java.net.URLDecoder.decode(decodedBase64, "UTF-8")
+        } catch (_: Exception) {
             text.trim()
         }
     }
@@ -140,17 +165,14 @@ object ClipboardParser {
             ?: "Imported Profile"
     }
 
-
     private fun decodeSubscriptionBody(body: String): List<String> {
         val trimmed = body.trim()
 
-        // Case 1: Body is a JSON array of profile objects
         if (trimmed.startsWith("[")) {
             return try {
                 val arr = org.json.JSONArray(trimmed)
                 (0 until arr.length()).mapNotNull { arr.optString(it).takeIf { s -> s.isNotBlank() } }
                     .ifEmpty {
-                        // Array of objects
                         (0 until arr.length()).mapNotNull { arr.optJSONObject(it)?.toString() }
                     }
             } catch (_: Exception) {
@@ -158,7 +180,6 @@ object ClipboardParser {
             }
         }
 
-        // Case 2: Body is a plain-text list (URIs or compact JSONs, one per line)
         val lines = trimmed.lines().filter { it.isNotBlank() }
         val looksLikePlainList = lines.all { line ->
             val l = line.trim()
@@ -168,7 +189,6 @@ object ClipboardParser {
             return splitJsonAware(trimmed)
         }
 
-        // Case 3: Base64-encoded body
         val flat = trimmed.replace("\r", "").replace("\n", "")
         return try {
             val clean = flat.replace("-", "+").replace("_", "/")
@@ -180,11 +200,6 @@ object ClipboardParser {
         }
     }
 
-    /**
-     * Splits a multi-entry string into individual profile entries.
-     * Handles: URI lines, compact JSON objects on single lines, and
-     * multi-line pretty-printed JSON objects by brace-matching.
-     */
     private fun splitJsonAware(text: String): List<String> {
         val results = mutableListOf<String>()
         var depth = 0
@@ -216,7 +231,6 @@ object ClipboardParser {
                     depth = 0
                 }
             } else {
-                // Plain URI or base64 entry
                 if (l.isNotEmpty()) results.add(l)
             }
         }
@@ -290,7 +304,6 @@ object ClipboardParser {
                 })
             })
             put("rules", JSONArray().apply {
-                // Resolve proxy server hostname directly (anti-loop)
                 put(JSONObject().apply {
                     put("outbound", JSONArray().put("any"))
                     put("server", "dns-direct")
@@ -319,8 +332,6 @@ object ClipboardParser {
                 put("auto_route", true)
                 put("strict_route", true)
                 put("stack", "mixed")
-                put("sniff", true)
-                put("sniff_override_destination", true)
             })
         })
 
@@ -336,6 +347,7 @@ object ClipboardParser {
             put("rules", JSONArray().apply {
                 put(JSONObject().apply { put("protocol", "dns"); put("action", "hijack-dns") })
                 put(JSONObject().apply { put("port", 53); put("action", "hijack-dns") })
+                put(JSONObject().apply { put("action", "sniff") })
                 put(JSONObject().apply { put("protocol", JSONArray().put("bittorrent")); put("outbound", "direct") })
                 put(JSONObject().apply { put("ip_is_private", true); put("outbound", "direct") })
                 if (proxyDomains.length() > 0) {
@@ -439,7 +451,6 @@ object ClipboardParser {
         val security = params["security"] ?: "none"
         put("security", security)
         put("network", params["type"] ?: "tcp")
-        
         if (security == "tls") {
             put("tlsSettings", JSONObject().apply { put("serverName", params["sni"] ?: host) })
         } else if (security == "reality") {
@@ -450,7 +461,6 @@ object ClipboardParser {
                 put("fingerprint", params["fp"] ?: "chrome")
             })
         }
-        
         when (params["type"]) {
             "ws" -> put("wsSettings", JSONObject().apply { put("path", params["path"] ?: "/"); put("headers", JSONObject().apply { put("Host", params["host"] ?: "") }) })
             "grpc" -> put("grpcSettings", JSONObject().apply { put("serviceName", params["serviceName"] ?: "") })

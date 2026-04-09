@@ -36,7 +36,6 @@ interface ProfileDao {
 
     @Query("UPDATE profiles SET name = :name, configJson = :configJson WHERE id = :id")
     suspend fun updateProfile(id: Long, name: String, configJson: String)
- 
     @Delete
     suspend fun delete(profile: ProfileEntity)
 

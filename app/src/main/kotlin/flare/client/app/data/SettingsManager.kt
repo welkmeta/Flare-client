@@ -14,17 +14,9 @@ class SettingsManager(context: Context) {
         get() = prefs.getString("frag_packet_type", "tlshello") ?: "tlshello"
         set(value) = prefs.edit().putString("frag_packet_type", value).apply()
 
-
-
     var fragmentInterval: String
         get() = prefs.getString("frag_interval", "10") ?: "10"
         set(value) = prefs.edit().putString("frag_interval", value).apply()
-
-
-
-
-
-
 
     var pingType: String
         get() = prefs.getString("ping_type", "via proxy GET") ?: "via proxy GET"
@@ -95,15 +87,45 @@ class SettingsManager(context: Context) {
         set(value) = prefs.edit().putBoolean("fake_ip_enabled", value).apply()
 
     var themeMode: Int
-        get() = 2 // Always Night
-        set(value) {}
+        get() = prefs.getInt("theme_mode", 0)
+        set(value) = prefs.edit().putInt("theme_mode", value).apply()
 
     var isBackgroundGradientEnabled: Boolean
         get() = prefs.getBoolean("bg_gradient_enabled", false)
         set(value) = prefs.edit().putBoolean("bg_gradient_enabled", value).apply()
+    var isGradientAnimationEnabled: Boolean
+        get() = prefs.getBoolean("bg_gradient_animation_enabled", false)
+        set(value) = prefs.edit().putBoolean("bg_gradient_animation_enabled", value).apply()
+
+    var gradientAnimationSpeed: Float
+        get() = prefs.getFloat("bg_gradient_animation_speed", 1.0f)
+        set(value) = prefs.edit().putFloat("bg_gradient_animation_speed", value).apply()
 
     var isStatusNotificationEnabled: Boolean
-        get() = prefs.getBoolean("status_notification_enabled", false)
+        get() = prefs.getBoolean("status_notification_enabled", true)
         set(value) = prefs.edit().putBoolean("status_notification_enabled", value).apply()
-}
 
+    var pendingNavScreen: String
+        get() = prefs.getString("pending_nav_screen", "") ?: ""
+        set(value) = prefs.edit().putString("pending_nav_screen", value).apply()
+
+    var isBestProfileEnabled: Boolean
+        get() = prefs.getBoolean("best_profile_enabled", false)
+        set(value) = prefs.edit().putBoolean("best_profile_enabled", value).apply()
+
+    var bestProfileInterval: String
+        get() = prefs.getString("best_profile_interval", "1800") ?: "1800"
+        set(value) = prefs.edit().putString("best_profile_interval", value).apply()
+
+    var isBestProfileOnlyIfConnected: Boolean
+        get() = prefs.getBoolean("best_profile_only_if_connected", true)
+        set(value) = prefs.edit().putBoolean("best_profile_only_if_connected", value).apply()
+
+    var isBestProfileNotificationEnabled: Boolean
+        get() = prefs.getBoolean("best_profile_notification_enabled", false)
+        set(value) = prefs.edit().putBoolean("best_profile_notification_enabled", value).apply()
+
+    var isOnboardingCompleted: Boolean
+        get() = prefs.getBoolean("onboarding_completed", false)
+        set(value) = prefs.edit().putBoolean("onboarding_completed", value).apply()
+}

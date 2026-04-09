@@ -21,7 +21,6 @@ interface SubscriptionDao {
 
     @Query("UPDATE subscriptions SET name = :name, url = :url WHERE id = :id")
     suspend fun updateSubscription(id: Long, name: String, url: String)
- 
     @Query("DELETE FROM subscriptions WHERE id = :id")
     suspend fun deleteById(id: Long)
 }
