@@ -129,7 +129,7 @@ object SingBoxManager {
                             }
 
                             try {
-                                val builder = vpnService.Builder().setSession("Flare Client")
+                                val builder = vpnService.Builder().setSession("Flare")
 
                                 try {
                                     val settings = SettingsManager(vpnService)

@@ -15,5 +15,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Flare Client"
+rootProject.name = "Flare"
 include(":app")

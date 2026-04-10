@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Flare Client</string>
+    <string name="app_name">Flare</string>
     <string name="btn_connect">Подключить</string>
     <string name="btn_disconnect">Отключить</string>
     <string name="btn_clipboard">Буфер обмена</string>
@@ -151,13 +151,13 @@
     <string name="option_yes">Да</string>
     <string name="option_no">Нет</string>
 
-    <string name="onboarding_welcome_title">Добро пожаловать в Flare Client!</string>
+    <string name="onboarding_welcome_title">Добро пожаловать в Flare!</string>
     <string name="onboarding_welcome_question">Хотите пройти первоначальную настройку?</string>
     <string name="onboarding_permissions_title">Разрешения</string>
     <string name="onboarding_notifications_title">Уведомления</string>
     <string name="onboarding_notifications_desc">Уведомления нужны чтобы приложение работало в фоне 24/7 а так же что-бы видеть актуальный статус туннеля</string>
     <string name="onboarding_battery_title">Энергопотребление</string>
-    <string name="onboarding_battery_desc">Что-бы приложение работало стабильно и Android его не закрывал нужно отключить экономию энергии для Flare Client</string>
+    <string name="onboarding_battery_desc">Что-бы приложение работало стабильно и Android его не закрывал нужно отключить экономию энергии для Flare</string>
     <string name="onboarding_fragmentation_title">Фрагментация</string>
     <string name="onboarding_fragmentation_question">Хотели бы включить фрагментацию?</string>
     <string name="onboarding_fragmentation_desc">Фрагментация помогает разделить пакет на несколько частей что помогает для обхода блокировок (DPI)</string>
