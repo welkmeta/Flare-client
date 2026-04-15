@@ -45,6 +45,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val connectionTimerText: StateFlow<String> = _connectionTimerText.asStateFlow()
 
     private var timerJob: kotlinx.coroutines.Job? = null
+    private var selectionJob: kotlinx.coroutines.Job? = null
     private val expandedSubs = MutableStateFlow<Set<Long>>(emptySet())
     private val _refreshingSubs = MutableStateFlow<Set<Long>>(emptySet())
     val refreshingSubs: StateFlow<Set<Long>> = _refreshingSubs.asStateFlow()
@@ -142,7 +143,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun toggleSubscriptionExpanded(subId: Long) = expandedSubs.update { if (subId in it) it - subId else it + subId }
-    fun selectProfile(profileId: Long) { viewModelScope.launch { repository.selectProfile(profileId); _selectedProfileId.value = profileId; if (_connectionState.value != ConnectionState.DISCONNECTED) { stopVpn(); startVpn() } } }
+    fun selectProfile(profileId: Long) {
+        selectionJob?.cancel()
+        selectionJob = viewModelScope.launch {
+            repository.selectProfile(profileId)
+            _selectedProfileId.value = profileId
+            
+            if (_connectionState.value != ConnectionState.DISCONNECTED) {
+                delay(250) 
+                stopVpn()
+                delay(100)
+                startVpn()
+            }
+        }
+    }
     fun deleteSubscription(subId: Long) {
         val subName = if (subId == VIRTUAL_SUB_ID) {
             getApplication<Application>().getString(R.string.sub_single_profiles)

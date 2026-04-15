@@ -21,6 +21,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class FlareVpnService : VpnService() {
 
@@ -38,27 +40,41 @@ class FlareVpnService : VpnService() {
     }
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val commandMutex = Mutex()
     private var statsJob: kotlinx.coroutines.Job? = null
     private var profileName: String = "Flare Profile"
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        when (intent?.action) {
-            ACTION_START -> {
-                val configJson = intent.getStringExtra(EXTRA_CONFIG) ?: return START_NOT_STICKY
-                profileName = intent.getStringExtra(EXTRA_PROFILE_NAME) ?: "Flare Profile"
-                startVpn(configJson)
+        val action = intent?.action ?: return START_NOT_STICKY
+        val configJson = intent.getStringExtra(EXTRA_CONFIG)
+        val name = intent.getStringExtra(EXTRA_PROFILE_NAME) ?: "Flare Profile"
+
+        serviceScope.launch {
+            commandMutex.withLock {
+                when (action) {
+                    ACTION_START -> {
+                        if (configJson != null) {
+                            profileName = name
+                            startVpnInternal(configJson, startId)
+                        }
+                    }
+                    ACTION_STOP -> stopVpnInternal(startId)
+                }
             }
-            ACTION_STOP -> stopVpn()
         }
         return START_STICKY
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        stopVpn()
+        serviceScope.launch {
+            commandMutex.withLock {
+                stopVpnInternal()
+            }
+        }
     }
 
-    private fun startVpn(configJson: String) {
+    private suspend fun startVpnInternal(configJson: String, startId: Int) {
         val notification = buildNotification()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             startForeground(
@@ -70,13 +86,9 @@ class FlareVpnService : VpnService() {
             startForeground(NOTIF_ID, notification)
         }
 
-        serviceScope.launch { startVpnInternal(configJson) }
-    }
-
-    private suspend fun startVpnInternal(configJson: String) {
         try {
             GeoFileManager.ensureGeoFiles(this)
-
+            
             try {
                 Libbox.checkConfig(configJson)
             } catch (e: Exception) {
@@ -87,7 +99,11 @@ class FlareVpnService : VpnService() {
 
             if (!started) {
                 broadcastState(false, error = true)
-                stopSelf()
+                
+                if (!SingBoxManager.isRunning) {
+                   stopForeground(STOP_FOREGROUND_REMOVE)
+                   stopSelf(startId)
+                }
                 return
             }
 
@@ -98,7 +114,7 @@ class FlareVpnService : VpnService() {
             broadcastState(false, error = true)
             SingBoxManager.stop()
             stopForeground(STOP_FOREGROUND_REMOVE)
-            stopSelf()
+            stopSelf(startId)
         }
     }
 
@@ -132,14 +148,12 @@ class FlareVpnService : VpnService() {
         }
     }
 
-    private fun stopVpn() {
+    private suspend fun stopVpnInternal(startId: Int = -1) {
         statsJob?.cancel()
-        serviceScope.launch {
-            SingBoxManager.stop()
-            broadcastState(false)
-            stopForeground(STOP_FOREGROUND_REMOVE)
-            stopSelf()
-        }
+        SingBoxManager.stop()
+        broadcastState(false)
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        if (startId != -1) stopSelf(startId)
     }
 
     private fun broadcastState(connected: Boolean, error: Boolean = false) {

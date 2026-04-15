@@ -81,10 +81,6 @@ object SingBoxManager {
     }
 
     suspend fun start(configContent: String, context: Context): Boolean {
-        if (isRunning) {
-            Log.w(TAG, "sing-box is already running (early check)")
-            return true
-        }
         return mutex.withLock {
             if (isRunning) {
                 Log.w(TAG, "sing-box is already running")
@@ -334,7 +330,7 @@ object SingBoxManager {
             false
         }
     }
-}
+    }
 
     suspend fun stop() {
         mutex.withLock {
