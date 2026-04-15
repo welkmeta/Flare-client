@@ -50,7 +50,7 @@ Flare is currently in **Beta**. You may encounter bugs or instability.
 To report an issue, please contact us in our Telegram chat.
 
 ### 📢 Telegram Channel
-**[@FlareApp](https://t.me/FlareApp)** - Official Flare Client news and updates.
+**[@FlareApp](https://t.me/FlareApp)** - Official Flare VPN news and updates.
 
 ---
 
@@ -93,7 +93,7 @@ Flare поддерживает широкий спектр современны�
 Чтобы сообщить об ошибке, вы можете обратиться в чат нашего Telegram-канала.
 
 ### 📢 Telegram-канал
-**[@FlareApp](https://t.me/FlareApp)** — официальный Telegram-канал проекта Flare Client.
+**[@FlareApp](https://t.me/FlareApp)** — официальный Telegram-канал проекта Flare VPN.
 
 ---
 
