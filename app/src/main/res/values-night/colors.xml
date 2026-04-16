@@ -42,4 +42,8 @@
     <color name="dialog_glass_stroke">#4DFFFFFF</color>
     <color name="dialog_glass_highlight">#33FFFFFF</color>
 
+    <color name="bg_profile_selected">#2A3245</color>
+    <color name="text_profile_selected_primary">#FFFFFF</color>
+    <color name="text_profile_selected_secondary">#B0BDD1</color>
+    <color name="divider_profile_selected">#4DFFFFFF</color>
 </resources>

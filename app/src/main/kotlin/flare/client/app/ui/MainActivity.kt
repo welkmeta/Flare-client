@@ -326,6 +326,9 @@ class MainActivity : AppCompatActivity() {
             val (accent, accentEnd) = getColorsForKey(settings.accentColorKey)
             runtimeAccentColor = accent
             runtimeAccentEndColor = accentEnd
+            if (::adapter.isInitialized) {
+                adapter.accentColor = accent
+            }
             applyAccentColorsToUI(accent, accentEnd)
         }
         if (themeChangedJustNow && settings.pendingNavScreen.isEmpty()) {
@@ -1797,7 +1800,14 @@ class MainActivity : AppCompatActivity() {
                 if (settings.isFragmentationEnabled) flare.client.app.R.drawable.bg_grouped_top
                 else flare.client.app.R.drawable.bg_grouped_all
         )
-        adv.tvPacketTypeValue.text = settings.packetType
+        val updateFallbackUI = {
+            val isFallbackEnabled = settings.packetType != "disabled"
+            adv.tvPacketTypeValue.text = if (isFallbackEnabled) getString(R.string.option_enable) else getString(R.string.option_disable)
+            adv.root.findViewById<android.view.View>(flare.client.app.R.id.layout_fragment_interval)?.visibility = 
+                if (isFallbackEnabled) android.view.View.VISIBLE else android.view.View.GONE
+        }
+        updateFallbackUI()
+
         adv.tvStackTypeValue.text = this@MainActivity.getString(R.string.settings_label_stack, settings.tunStack)
         val updateStackDesc = { stack: String ->
             adv.tvStackTypeDesc.text = when (stack) {
@@ -1845,10 +1855,12 @@ class MainActivity : AppCompatActivity() {
         }
 
         adv.btnPacketType.setOnClickListener { view ->
-            showPopupMenu(view, listOf("tlshello", "1-3")) { selected ->
-                if (settings.packetType != selected) {
-                    adv.tvPacketTypeValue.text = selected
-                    settings.packetType = selected
+            val options = listOf(getString(R.string.option_enable), getString(R.string.option_disable))
+            showPopupMenu(view, options) { selected ->
+                val newValue = if (selected == getString(R.string.option_enable)) "enabled" else "disabled"
+                if (settings.packetType != newValue) {
+                    settings.packetType = newValue
+                    updateFallbackUI()
                     showSettingsNotification()
                 }
             }
@@ -2560,6 +2572,11 @@ class MainActivity : AppCompatActivity() {
     private fun applyAccentColorsToUI(accent: Int, accentEnd: Int) {
         val root = window.decorView
         applyAccentToViewTree(root, accent)
+
+        if (::adapter.isInitialized) {
+            adapter.accentColor = accent
+            adapter.notifyDataSetChanged()
+        }
 
         
         

@@ -623,29 +623,24 @@ object SingBoxManager {
             if (settings.isFragmentationEnabled) {
                 val tls = proxyOutbound.optJSONObject("tls")
                 if (tls != null) {
-                    val packetType = settings.packetType
-                    when (packetType) {
-                        "1-3" -> {
-                            tls.put("record_fragment", true)
-                        }
-                        else -> {
-                            tls.put("fragment", true)
-                            tls.put("record_fragment", true)
-                        }
-                    }
+                    tls.put("fragment", true)
+                    tls.put("record_fragment", true)
 
-                    val intervalMs = settings.fragmentInterval.trim().toIntOrNull() ?: 10
-                    tls.put("fragment_fallback_delay", "${intervalMs}ms")
+                    if (settings.packetType != "disabled") {
+                        val intervalMs = settings.fragmentInterval.trim().toIntOrNull() ?: 10
+                        tls.put("fragment_fallback_delay", "${intervalMs}ms")
 
-                    Log.i(
+                        Log.i(
                             TAG,
-                            "injectAdvancedSettings: fragment injected " +
-                                    "(packetType=$packetType, delay=${intervalMs}ms)"
-                    )
+                            "injectAdvancedSettings: fragment fallback added (${intervalMs}ms)"
+                        )
+                    } else {
+                        Log.i(TAG, "injectAdvancedSettings: fragment fallback disabled")
+                    }
                 } else {
                     Log.w(
-                            TAG,
-                            "injectAdvancedSettings: proxy has no TLS block, skipping fragmentation"
+                        TAG,
+                        "injectAdvancedSettings: proxy has no TLS block, skipping fragmentation"
                     )
                 }
             }

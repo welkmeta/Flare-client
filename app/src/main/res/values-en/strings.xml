@@ -34,9 +34,8 @@
 
     <string name="settings_advanced_title">Advanced Settings</string>
     <string name="settings_label_fragmentation">Fragmentation</string>
-    <string name="settings_label_packet_type">Packet type</string>
-
-    <string name="settings_label_fragment_interval">Fragment delay</string>
+    <string name="settings_label_packet_type">Fallback</string>
+    <string name="settings_label_fragment_interval">Timeout</string>
 
     <string name="settings_label_noise_type">Type</string>
     <string name="settings_label_noise_packet">Packet</string>
@@ -171,6 +170,8 @@
     <string name="settings_label_best_profile_notif">Best profile selection</string>
     <string name="option_yes">Yes</string>
     <string name="option_no">No</string>
+    <string name="option_enable">Enable</string>
+    <string name="option_disable">Disable</string>
 
     <string name="onboarding_welcome_title">Welcome to Flare!</string>
     <string name="onboarding_welcome_question">Do you want to run initial setup?</string>

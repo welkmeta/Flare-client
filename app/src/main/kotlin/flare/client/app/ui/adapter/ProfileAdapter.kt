@@ -34,6 +34,8 @@ class ProfileAdapter(
     private val onProfileLongClick: (ProfileEntity) -> Unit,
 ) : ListAdapter<DisplayItem, RecyclerView.ViewHolder>(DIFF) {
 
+    var accentColor: Int? = null
+
     companion object {
         private const val TYPE_SUBSCRIPTION = 0
         private const val TYPE_PROFILE = 1
@@ -295,17 +297,21 @@ class ProfileAdapter(
             binding.viewSelectedBg.alpha = selectionAlpha
             binding.ivSelectedCheck.alpha = selectionAlpha
 
+            accentColor?.let { color ->
+                binding.ivSelectedCheck.imageTintList = android.content.res.ColorStateList.valueOf(color)
+            }
+
             if (item.isSelected) {
-                binding.tvProfileName.setTextColor(Color.WHITE)
-                binding.tvServerDescription.setTextColor(Color.parseColor("#B0BDD1"))
-                binding.ivEditJson.imageTintList = android.content.res.ColorStateList.valueOf(Color.parseColor("#B0BDD1"))
-                binding.viewArrowDivider.background = android.graphics.drawable.ColorDrawable(Color.WHITE)
-                binding.viewArrowDivider.alpha = 0.3f
+                binding.tvProfileName.setTextColor(ContextCompat.getColor(binding.root.context, R.color.text_profile_selected_primary))
+                binding.tvServerDescription.setTextColor(ContextCompat.getColor(binding.root.context, R.color.text_profile_selected_secondary))
+                binding.ivEditJson.imageTintList = android.content.res.ColorStateList.valueOf(ContextCompat.getColor(binding.root.context, R.color.text_profile_selected_secondary))
+                binding.viewArrowDivider.background = android.graphics.drawable.ColorDrawable(ContextCompat.getColor(binding.root.context, R.color.divider_profile_selected))
+                binding.viewArrowDivider.alpha = 1.0f
             } else {
                 binding.tvProfileName.setTextColor(ContextCompat.getColor(binding.root.context, R.color.text_primary))
                 binding.tvServerDescription.setTextColor(ContextCompat.getColor(binding.root.context, R.color.text_secondary))
                 binding.ivEditJson.imageTintList = android.content.res.ColorStateList.valueOf(ContextCompat.getColor(binding.root.context, R.color.text_secondary))
-                binding.viewArrowDivider.background = android.graphics.drawable.ColorDrawable(Color.WHITE)
+                binding.viewArrowDivider.background = android.graphics.drawable.ColorDrawable(ContextCompat.getColor(binding.root.context, R.color.bg_surface))
                 binding.viewArrowDivider.alpha = 0.3f
             }
             binding.layoutContent.alpha = if (item.isSelected) 1.0f else 0.7f

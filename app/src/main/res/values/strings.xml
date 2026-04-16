@@ -34,9 +34,8 @@
 
     <string name="settings_advanced_title">Расширенные настройки</string>
     <string name="settings_label_fragmentation">Фрагментация</string>
-    <string name="settings_label_packet_type">Тип пакетов</string>
-
-    <string name="settings_label_fragment_interval">Задержка пакетов</string>
+    <string name="settings_label_packet_type">Откат</string>
+    <string name="settings_label_fragment_interval">Тайм-аут</string>
     <string name="settings_label_fragment_size">Размер</string>
     <string name="settings_label_fragment_sleep">Задержка</string>
 
@@ -173,6 +172,8 @@
     <string name="settings_label_best_profile_notif">Выбор лучшего профиля</string>
     <string name="option_yes">Да</string>
     <string name="option_no">Нет</string>
+    <string name="option_enable">Включить</string>
+    <string name="option_disable">Отключить</string>
 
     <string name="onboarding_welcome_title">Добро пожаловать в Flare!</string>
     <string name="onboarding_welcome_question">Хотите пройти первоначальную настройку?</string>
