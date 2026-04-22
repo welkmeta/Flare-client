@@ -402,14 +402,8 @@ object SingBoxManager {
                         outbounds.optJSONObject(it)?.optString("tag") == "proxy"
                     }
                     if (!hasProxyOutbound) {
-                        val realProxyTag = (0 until outbounds.length())
-                            .mapNotNull { outbounds.optJSONObject(it) }
-                            .firstOrNull { ob ->
-                                val t = ob.optString("type", "")
-                                val tag = ob.optString("tag", "")
-                                tag.isNotEmpty() && t != "direct" && t != "block" && t != "dns"
-                            }?.optString("tag")
-                        if (realProxyTag != null) {
+                        val realProxyTag = findPrimaryProxyTag(outbounds)
+                        if (realProxyTag != "proxy") {
                             Log.i(TAG, "injectAdvancedSettings: fixing dns-remote detour 'proxy' → '$realProxyTag'")
                             for (i in 0 until servers.length()) {
                                 val server = servers.optJSONObject(i) ?: continue
@@ -431,22 +425,7 @@ object SingBoxManager {
                     val rules = route.optJSONArray("rules") ?: JSONArray().also { route.put("rules", it) }
 
                     
-                    val proxyTag = run {
-                        val outbounds = obj.optJSONArray("outbounds")
-                        var tag = "proxy"
-                        if (outbounds != null) {
-                            for (i in 0 until outbounds.length()) {
-                                val ob = outbounds.optJSONObject(i) ?: continue
-                                val t = ob.optString("type", "")
-                                val tg = ob.optString("tag", "")
-                                if (t != "direct" && t != "block" && t != "dns" && tg.isNotEmpty()) {
-                                    tag = tg
-                                    break
-                                }
-                            }
-                        }
-                        tag
-                    }
+                    val proxyTag = findPrimaryProxyTag(obj.optJSONArray("outbounds") ?: JSONArray())
 
                     
                     val targetOutbound = if (modeSites == "whitelist") proxyTag else "direct"
@@ -635,23 +614,12 @@ object SingBoxManager {
                     obj.optJSONArray("outbounds") ?: return obj.toString(2).replace("\\/", "/")
 
             
+            val proxyTag = findPrimaryProxyTag(outbounds)
             var proxyIndex = -1
             for (i in 0 until outbounds.length()) {
-                if (outbounds.optJSONObject(i)?.optString("tag") == "proxy") {
+                if (outbounds.optJSONObject(i)?.optString("tag") == proxyTag) {
                     proxyIndex = i
                     break
-                }
-            }
-            if (proxyIndex == -1) {
-                
-                for (i in 0 until outbounds.length()) {
-                    val ob = outbounds.optJSONObject(i) ?: continue
-                    val t = ob.optString("type", "")
-                    if (t != "direct" && t != "block" && t != "dns" && t != "urltest" && t != "selector") {
-                        proxyIndex = i
-                        Log.w(TAG, "injectAdvancedSettings: 'proxy' outbound not found, using '${ob.optString("tag")}' as target for frag/mux")
-                        break
-                    }
                 }
             }
 
@@ -737,5 +705,27 @@ object SingBoxManager {
             Log.e(TAG, "injectAdvancedSettings failed: ${e.message}", e)
             configJson
         }
+    }
+
+    private fun findPrimaryProxyTag(outbounds: JSONArray): String {
+        
+        for (i in 0 until outbounds.length()) {
+            val ob = outbounds.optJSONObject(i) ?: continue
+            val type = ob.optString("type", "")
+            if (type == "urltest" || type == "selector") {
+                val tag = ob.optString("tag", "")
+                if (tag.isNotEmpty()) return tag
+            }
+        }
+        
+        for (i in 0 until outbounds.length()) {
+            val ob = outbounds.optJSONObject(i) ?: continue
+            val type = ob.optString("type", "")
+            val tag = ob.optString("tag", "")
+            if (tag.isNotEmpty() && type != "direct" && type != "block" && type != "dns" && type != "dns-out") {
+                return tag
+            }
+        }
+        return "proxy"
     }
 }

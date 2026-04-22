@@ -295,7 +295,7 @@ object V2RayConfigConverter {
                                             put("tag", "dns-remote")
                                             put("address", primaryDns)
                                             put("address_resolver", "dns-direct")
-                                            put("detour", "proxy")
+                                            put("detour", findPrimaryProxyTag(sbOutbounds))
                                         }
                                 )
                                 put(
@@ -358,23 +358,12 @@ object V2RayConfigConverter {
         sb.put("inbounds", sbInbounds)
 
         sb.put("outbounds", sbOutbounds)
-        var primaryProxyTag = "proxy"
-        if (firstBalancerTag.isNotEmpty()) {
-            primaryProxyTag = firstBalancerTag
-        } else if (sbOutbounds.length() > 0) {
-            for (i in 0 until sbOutbounds.length()) {
-                val t = sbOutbounds.optJSONObject(i)?.optString("tag") ?: continue
-                if (t != "direct" && t != "block" && t != "dns-out") {
-                    primaryProxyTag = t
-                    break
-                }
-            }
-        }
 
 
         val sbRoute =
                 JSONObject().apply {
-                    put("auto_detect_interface", true)
+                    put("auto_detect_interface", false)
+                    val primaryProxyTag = findPrimaryProxyTag(sbOutbounds)
                     put("final", primaryProxyTag)
                     val sbRules = JSONArray().apply {
                         put(JSONObject().apply { put("protocol", "dns"); put("action", "hijack-dns") })
@@ -405,6 +394,22 @@ object V2RayConfigConverter {
                         put("rule_set", sbRuleSets)
                     }
                 }
+        
+        
+        val finalPrimaryTag = findPrimaryProxyTag(sbOutbounds)
+        val dns = sb.optJSONObject("dns")
+        if (dns != null) {
+            val servers = dns.optJSONArray("servers")
+            if (servers != null) {
+                for (i in 0 until servers.length()) {
+                    val server = servers.optJSONObject(i) ?: continue
+                    if (server.optString("tag") == "dns-remote") {
+                        server.put("detour", finalPrimaryTag)
+                    }
+                }
+            }
+        }
+
         sb.put("route", sbRoute)
 
         return sb.toString(2).replace("\\/", "/")
@@ -689,14 +694,8 @@ object V2RayConfigConverter {
         }
         if (hasProxyOutbound) return
 
-        
-        val realProxyTag = (0 until outbounds.length())
-            .mapNotNull { outbounds.optJSONObject(it) }
-            .firstOrNull { ob ->
-                val t = ob.optString("type", "")
-                val tag = ob.optString("tag", "")
-                tag.isNotEmpty() && t != "direct" && t != "block" && t != "dns"
-            }?.optString("tag") ?: return
+        val realProxyTag = findPrimaryProxyTag(outbounds)
+        if (realProxyTag == "proxy") return
 
         Log.d("V2RayConfigConverter", "fixDnsRemoteDetour: replacing detour 'proxy' with '$realProxyTag'")
         for (i in 0 until servers.length()) {
@@ -705,6 +704,28 @@ object V2RayConfigConverter {
                 server.put("detour", realProxyTag)
             }
         }
+    }
+
+    private fun findPrimaryProxyTag(outbounds: JSONArray): String {
+        
+        for (i in 0 until outbounds.length()) {
+            val ob = outbounds.optJSONObject(i) ?: continue
+            val type = ob.optString("type", "")
+            if (type == "urltest" || type == "selector") {
+                val tag = ob.optString("tag", "")
+                if (tag.isNotEmpty()) return tag
+            }
+        }
+        
+        for (i in 0 until outbounds.length()) {
+            val ob = outbounds.optJSONObject(i) ?: continue
+            val type = ob.optString("type", "")
+            val tag = ob.optString("tag", "")
+            if (tag.isNotEmpty() && type != "direct" && type != "block" && type != "dns" && type != "dns-out") {
+                return tag
+            }
+        }
+        return "proxy"
     }
 
     private fun fixSingBox(obj: JSONObject): String {
@@ -778,7 +799,9 @@ object V2RayConfigConverter {
         fixDnsRemoteDetour(obj)
 
         if (route != null) {
-            route.put("auto_detect_interface", true)
+            if (!route.has("auto_detect_interface")) {
+                route.put("auto_detect_interface", false)
+            }
             val rules = route.optJSONArray("rules") ?: JSONArray().also { route.put("rules", it) }
 
             
