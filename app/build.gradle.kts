@@ -12,12 +12,16 @@ android {
 
     defaultConfig {
         applicationId = "flare.client.app"
-        minSdk = 24
-        targetSdk = 34
-        versionCode = 6
-        versionName = "1.1.1"
+        minSdk = 26
+        targetSdk = 35
+        versionCode = 11
+        versionName = "1.1.6"
         renderscriptTargetApi = 31
         renderscriptSupportModeEnabled = true
+
+        ndk {
+            abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a"))
+        }
     }
 
     signingConfigs {
