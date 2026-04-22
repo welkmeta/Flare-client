@@ -40,6 +40,7 @@ import flare.client.app.databinding.ActivityMainBinding
 import flare.client.app.databinding.DialogAppSelectionBinding
 import flare.client.app.databinding.ItemAppSelectionBinding
 import flare.client.app.ui.adapter.ProfileAdapter
+import flare.client.app.data.model.DisplayItem
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
@@ -56,6 +57,8 @@ import android.widget.TextView
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.recyclerview.widget.ItemTouchHelper
+import flare.client.app.ui.widget.SwipeToDeleteCallback
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import eightbitlab.com.blurview.BlurTarget
 
@@ -374,10 +377,27 @@ class MainActivity : AppCompatActivity() {
                             } else {
                                 showSnackbar(getString(R.string.error_link_generation))
                             }
+                        },
+                        onProfileDelete = { profile ->
+                            viewModel.deleteProfile(profile.id)
                         }
                 )
         binding.rvProfiles.layoutManager = LinearLayoutManager(this)
         binding.rvProfiles.adapter = adapter
+
+        val swipeHandler = SwipeToDeleteCallback(adapter) { position ->
+            val item = adapter.currentList[position]
+            if (item is DisplayItem.ProfileItem) {
+                viewModel.deleteProfile(item.entity.id)
+                flare.client.app.ui.notification.AppNotificationManager.showNotification(
+                    flare.client.app.ui.notification.NotificationType.SUCCESS,
+                    getString(R.string.profile_deleted_success, item.entity.name),
+                    3
+                )
+            }
+        }
+        val itemTouchHelper = ItemTouchHelper(swipeHandler)
+        itemTouchHelper.attachToRecyclerView(binding.rvProfiles)
     }
 
     private fun setupButtons() {

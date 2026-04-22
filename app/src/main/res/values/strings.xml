@@ -128,7 +128,7 @@
     <string name="settings_label_status_notification">Уведомление с статусом</string>
     <string name="settings_label_status">Статус</string>
     <string name="hint_add_first_profile">Добавьте свой первый профиль или подписку с помощью кнопки ниже!</string>
-    <string name="sub_single_profiles">Одиночные профили</string>
+    <string name="sub_single_profiles">Список профилей</string>
     <string name="servers_title_flare">Сервера Flare</string>
     <string name="servers_desc_flare">Flare Servers: анонимные, не хранят логи, работают быстро и доступны 24/7.</string>
     <string name="servers_title_create">Создать свой сервер</string>
@@ -245,6 +245,7 @@
     <string name="settings_ping_interval_min_warning">Минимальный интервал — 10 секунд</string>
     <string name="label_unknown">Неизвестно</string>
     <string name="success_profile_added">Профиль %s успешно добавлен!</string>
+    <string name="profile_deleted_success">Профиль %s успешно удален!</string>
     <string name="success_subscription_added">Подписка %s успешно добавлена!</string>
     <string name="error_import_failed">Не удалось добавить подписку или профиль!</string>
     <string name="error_import_timeout">Не удалось добавить подписку или профиль! (таймаут 10 сек)</string>

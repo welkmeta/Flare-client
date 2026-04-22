@@ -32,13 +32,14 @@ class ProfileAdapter(
     private val onEditSubscriptionJson: (SubscriptionEntity) -> Unit,
     private val onSubscriptionUpdate: (SubscriptionEntity) -> Unit,
     private val onProfileLongClick: (ProfileEntity) -> Unit,
+    private val onProfileDelete: (ProfileEntity) -> Unit,
 ) : ListAdapter<DisplayItem, RecyclerView.ViewHolder>(DIFF) {
 
     var accentColor: Int? = null
 
     companion object {
-        private const val TYPE_SUBSCRIPTION = 0
-        private const val TYPE_PROFILE = 1
+        const val TYPE_SUBSCRIPTION = 0
+        const val TYPE_PROFILE = 1
 
         private val DIFF = object : DiffUtil.ItemCallback<DisplayItem>() {
             override fun areItemsTheSame(old: DisplayItem, new: DisplayItem): Boolean {
@@ -168,12 +169,21 @@ class ProfileAdapter(
             binding.ivSpeedTest.setOnClickListener { speedTest(item.entity.id) }
 
             val isVirtual = item.entity.id == -1L
-            binding.ivMoreOptions.visibility = if (isVirtual) View.GONE else View.VISIBLE
-            if (!isVirtual) {
-                binding.ivMoreOptions.setOnClickListener { view ->
+            binding.ivSync.visibility = if (isVirtual) View.GONE else View.VISIBLE
+            binding.ivMoreOptions.visibility = View.VISIBLE
+            
+            binding.ivMoreOptions.setOnClickListener { view ->
+                val items = if (isVirtual) {
+                    val deleteLabel = view.context.getString(R.string.menu_delete_subscription)
+                    listOf(
+                        flare.client.app.util.GlassUtils.MenuItem(1, deleteLabel) {
+                            onSubscriptionDelete(item.entity.id)
+                        }
+                    )
+                } else {
                     val editLabel = view.context.getString(R.string.menu_edit_subscription)
                     val deleteLabel = view.context.getString(R.string.menu_delete_subscription)
-                    val items = listOf(
+                    listOf(
                         flare.client.app.util.GlassUtils.MenuItem(1, editLabel) {
                             onEditSubscriptionJson(item.entity)
                         },
@@ -181,14 +191,18 @@ class ProfileAdapter(
                             onSubscriptionDelete(item.entity.id)
                         }
                     )
-                    flare.client.app.util.GlassUtils.showGlassMenu(view, items)
                 }
+                flare.client.app.util.GlassUtils.showGlassMenu(view, items)
             }
         }
 
         fun updateTraffic(item: DisplayItem.SubscriptionItem) {
             val used = item.entity.upload + item.entity.download
             val isInfinite = item.entity.id == -1L || item.entity.total == Long.MAX_VALUE
+
+            accentColor?.let { color ->
+                binding.pbTraffic.progressTintList = android.content.res.ColorStateList.valueOf(color)
+            }
 
             if (isInfinite || item.entity.total > 0 || used > 0) {
                 binding.llTrafficContainer.visibility = View.VISIBLE

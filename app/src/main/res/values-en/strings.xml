@@ -126,7 +126,7 @@
     <string name="settings_label_status_notification">Status notification</string>
     <string name="settings_label_status">Status</string>
     <string name="hint_add_first_profile">Add your first profile or subscription using buttons below!</string>
-    <string name="sub_single_profiles">Single profiles</string>
+    <string name="sub_single_profiles">List of profiles</string>
     <string name="servers_title_flare">Flare Servers</string>
     <string name="servers_desc_flare">Flare Servers: anonymous, no logs, fast and available 24/7.</string>
     <string name="servers_title_create">Create your server</string>
@@ -243,6 +243,7 @@
     <string name="settings_ping_interval_min_warning">Minimum interval is 10 seconds</string>
     <string name="label_unknown">Unknown</string>
     <string name="success_profile_added">Profile %s added successfully!</string>
+    <string name="profile_deleted_success">Profile %s deleted!</string>
     <string name="success_subscription_added">Subscription %s added successfully!</string>
     <string name="error_import_failed">Failed to add subscription or profile!</string>
     <string name="error_import_timeout">Failed to add subscription or profile! (timeout 10 sec)</string>
